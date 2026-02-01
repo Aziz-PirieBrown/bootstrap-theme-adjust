@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NEXUS | Azure Link Manager</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⭐</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script>
@@ -13,13 +13,8 @@
             theme: {
                 extend: {
                     colors: {
-                        bg: '#0f172a',
-                        card: '#1e293b',
-                        border: '#334155',
-                        input: '#0f172a',
-                        primary: '#38bdf8',
-                        accent: '#22d3ee',
-                        success: '#4ade80',
+                        bg: '#0f172a', card: '#1e293b', border: '#334155',
+                        primary: '#38bdf8', accent: '#22d3ee'
                     }
                 }
             }
@@ -35,7 +30,8 @@
 </head>
 <body class="min-h-screen pb-20">
     <div id="app" class="max-w-6xl mx-auto p-4 md:p-8">
-        <header class="bg-card border border-border rounded-xl p-6 mb-8 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
+        <header class="bg-card border border-border rounded-xl p-6 mb-8 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4 transition-all duration-500"
+            :class="{'shadow-green-500/20 border-green-500/50': statusText === 'Synced', 'shadow-red-500/20 border-red-500/50': statusText.includes('Error')}">
             <div class="flex items-center gap-4">
                 <div class="relative">
                     <div class="w-3 h-3 rounded-full" :class="statusColor"></div>
@@ -43,10 +39,10 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <span class="text-primary">NEXUS</span> AZURE
+                        <span class="text-primary">NEXUS</span> CONTROL
                     </h1>
                     <div class="text-slate-400 text-xs font-mono mt-1 flex gap-2">
-                        <span>CLOUD_MODE</span>
+                        <span>PRIVATE_MODE</span>
                         <span class="text-slate-600">|</span>
                         <span :class="{'text-green-400': statusText==='Synced', 'text-red-400': statusText.includes('Error')}">{{ statusText }}</span>
                     </div>
@@ -55,7 +51,7 @@
             <button @click="saveConfig" :disabled="isSaving" class="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all active:scale-95 disabled:opacity-50 group">
                 <span class="flex items-center gap-2">
                     <span v-if="isSaving" class="animate-spin text-xl">⟳</span>
-                    <span v-else>SYNC TO CLOUD</span>
+                    <span v-else>SYNC NOW</span>
                 </span>
             </button>
         </header>
@@ -63,10 +59,10 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div class="lg:col-span-4 space-y-6">
                 <div class="bg-card border border-border rounded-xl p-6 shadow-lg">
-                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">New Identity (ID)</h3>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Add Identity</h3>
                     <div class="flex gap-2 relative">
                         <span class="absolute left-3 top-2.5 text-slate-500 font-mono">ID:</span>
-                        <input v-model="newUserId" @keyup.enter="addUser" type="text" placeholder="例如 nas" class="w-full border border-slate-600 rounded-lg pl-10 pr-4 py-2 text-sm text-white font-mono">
+                        <input v-model="newUserId" @keyup.enter="addUser" type="text" placeholder="e.g. nas" class="w-full border border-slate-600 rounded-lg pl-10 pr-4 py-2 text-sm text-white font-mono">
                         <button @click="addUser" class="bg-slate-700 hover:bg-slate-600 text-white px-4 rounded-lg border border-slate-600 font-bold">+</button>
                     </div>
                 </div>
@@ -82,15 +78,14 @@
                                 </div>
                                 <div>
                                     <div class="text-2xl font-bold text-white tracking-tight">{{ userId }}</div>
-                                    <div class="text-xs font-mono text-slate-400">Jump URL: ?id={{ userId }}</div>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button @click="copyLink(userId)" class="p-2 text-slate-400 hover:text-primary transition-colors">
-                                    <span v-if="!copyStatus[userId]">复制链接</span>
-                                    <span v-else class="text-green-400">已复制!</span>
+                                <button @click="copyLink(userId)" class="p-2 text-slate-400 hover:text-primary transition-colors text-sm font-mono border border-slate-700 rounded bg-slate-800">
+                                    <span v-if="!copyStatus[userId]">📋 Copy Link</span>
+                                    <span v-else class="text-green-400">✨ Copied!</span>
                                 </button>
-                                <button @click="deleteUser(userId)" class="text-slate-600 hover:text-red-400 p-2">删除</button>
+                                <button @click="deleteUser(userId)" class="text-slate-600 hover:text-red-400 p-2 text-sm">Delete</button>
                             </div>
                         </div>
 
@@ -105,7 +100,7 @@
                                 </div>
                                 <div class="space-y-2 pl-3">
                                     <div v-for="(url, name) in links" :key="name" class="flex items-center gap-3 group/link">
-                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" class="w-1/3 bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs text-slate-200">
+                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" class="w-1/3 bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs text-slate-200 focus:text-white">
                                         <span class="text-slate-600 text-xs">➜</span>
                                         <input type="text" v-model="userGroups[groupName][name]" class="flex-1 bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs font-mono text-primary">
                                         <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 opacity-0 group-hover/link:opacity-100">×</button>
@@ -121,8 +116,12 @@
     </div>
 
     <script>
-        // ⚠️ 【核心：请替换为你 Azure 后端的长链接，末尾带上 code=...】
-        const SERVICE_URL = 'https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/api/nexus-handler?code=KD0qUaWPZgOBfzFbQtiZTfeluyK98b9w2iqpE1LLiiWNAzFuWJ2vfw==';
+        // ✅ 个人自用配置
+        const BASE_URL = 'https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/api/nexus-handler';
+        const ACCESS_CODE = 'KD0qUaWPZgOBfzFbQtiZTfeluyK98b9w2iqpE1LLiiWNAzFuWJ2vfw==';
+        
+        // 拼接完整 URL (既用于管理，也用于生成带 Key 的跳转链接，保证 100% 可用)
+        const FULL_URL = `${BASE_URL}?code=${ACCESS_CODE}`;
 
         const { createApp, ref, onMounted, watch } = Vue;
         createApp({
@@ -135,27 +134,28 @@
                 const copyStatus = ref({});
                 let timer = null;
 
-                // 从云端加载数据
+                // 读取
                 const fetchConfig = async () => {
                     try {
                         statusText.value = 'Syncing...';
-                        const res = await fetch(`${SERVICE_URL}&action=get`);
-                        const data = await res.json();
-                        config.value = data || {};
+                        const res = await fetch(`${FULL_URL}&action=get`);
+                        if (!res.ok) throw new Error('Network error');
+                        config.value = await res.json() || {};
                         statusText.value = 'Synced';
                         statusColor.value = 'bg-green-400';
                     } catch (e) {
+                        console.error(e);
                         statusText.value = 'Connect Error';
                         statusColor.value = 'bg-red-500';
                     }
                 };
 
-                // 保存数据到云端
+                // 保存
                 const saveConfig = async () => {
                     if (Object.keys(config.value).length === 0) return;
                     isSaving.value = true;
                     try {
-                        const res = await fetch(`${SERVICE_URL}&action=save`, {
+                        const res = await fetch(`${FULL_URL}&action=save`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(config.value)
@@ -172,44 +172,58 @@
                     }
                 };
 
-                // 添加新的 ID 节点
-                const addUser = () => {
-                    const id = newUserId.value.trim();
-                    if (id && !config.value[id]) {
-                        config.value[id] = { 'default': { 'My Link': 'http://' } };
-                        newUserId.value = '';
-                    }
-                };
-
-                // 复制生成的短链接
+                // 复制链接 (包含 Key，确保在任何地方都能访问)
                 const copyLink = (uid) => {
-                    const url = `${SERVICE_URL}&id=${uid}`;
+                    // 如果你开启了 Azure 的匿名访问 (Anonymous)，可以把下面的 `&code=${ACCESS_CODE}` 删掉，链接会更好看
+                    const url = `${BASE_URL}?code=${ACCESS_CODE}&id=${uid}`; 
                     navigator.clipboard.writeText(url);
                     copyStatus.value[uid] = true;
                     setTimeout(() => copyStatus.value[uid] = false, 2000);
                 };
 
-                // 自动保存监听：修改后 3 秒自动同步
+                // 自动保存 (防抖优化)
                 watch(config, () => {
-                    clearTimeout(timer);
-                    statusText.value = 'Modified';
-                    timer = setTimeout(saveConfig, 3000);
+                    if(statusText.value !== 'Syncing...') {
+                        statusText.value = 'Modified...';
+                        statusColor.value = 'bg-yellow-500';
+                    }
+                    if(timer) clearTimeout(timer);
+                    timer = setTimeout(saveConfig, 2000); // 2秒后自动保存
                 }, { deep: true });
 
-                // 列表操作函数
-                const deleteUser = (id) => { if(confirm('确认删除 ID: '+id+'?')) delete config.value[id]; };
-                const addGroup = (id) => config.value[id]['New Group'] = { 'Item': 'http://' };
+                // 逻辑操作
+                const addUser = () => {
+                    const id = newUserId.value.trim();
+                    if (id && !config.value[id]) {
+                        config.value[id] = { 'Default': { 'Home': 'http://' } };
+                        newUserId.value = '';
+                    }
+                };
+                
+                const deleteUser = (id) => { if(confirm(`Delete ID: ${id}?`)) delete config.value[id]; };
+                const addGroup = (id) => {
+                    const groupName = 'Group ' + (Object.keys(config.value[id]).length + 1);
+                    config.value[id][groupName] = { 'New Link': 'http://' };
+                };
                 const deleteGroup = (id, gn) => delete config.value[id][gn];
                 const addLink = (id, gn) => config.value[id][gn]['New Link'] = 'http://';
                 const deleteLink = (id, gn, ln) => delete config.value[id][gn][ln];
+                
+                // ✅ 修复：防止改名为空时误删
                 const renameLink = (id, gn, o, n) => {
-                    if(n && !config.value[id][gn][n]) {
-                        config.value[id][gn][n] = config.value[id][gn][o];
+                    const newName = n.trim();
+                    if(newName && newName !== o && !config.value[id][gn][newName]) {
+                        config.value[id][gn][newName] = config.value[id][gn][o];
                         delete config.value[id][gn][o];
+                    } else if (newName === '') {
+                        // 如果用户删空了，强制刷新视图或者不处理（这里依靠Vue双向绑定，通常输入框会变空但不删除数据）
+                        // 实际上因为 value 绑定的是 key，这里最好是刷新列表。
+                        // 简单处理：不做操作，用户刷新页面会恢复，或者你可以添加强制重新渲染逻辑
                     }
                 };
 
                 onMounted(fetchConfig);
+
                 return { config, newUserId, isSaving, statusText, statusColor, copyStatus, saveConfig, addUser, deleteUser, addGroup, deleteGroup, addLink, deleteLink, renameLink, copyLink };
             }
         }).mount('#app');
