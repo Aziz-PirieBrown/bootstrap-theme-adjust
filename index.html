@@ -14,7 +14,7 @@
                 extend: {
                     colors: {
                         bg: '#0f172a', card: '#1e293b', border: '#334155',
-                        primary: '#38bdf8', accent: '#22d3ee'
+                        primary: '#38bdf8', accent: '#22d3ee', success: '#4ade80',
                     }
                 }
             }
@@ -24,10 +24,14 @@
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; }
         .list-enter-active, .list-leave-active { transition: all 0.3s ease; }
         .list-enter-from, .list-leave-to { opacity: 0; transform: translateY(10px); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         input { background: rgba(15, 23, 42, 0.6); transition: all 0.2s; }
         input:focus { outline: none; border-color: #38bdf8; background: rgba(15, 23, 42, 0.9); }
     </style>
 </head>
+
 <body class="min-h-screen pb-20">
     <div id="app" class="max-w-6xl mx-auto p-4 md:p-8">
         <header class="bg-card border border-border rounded-xl p-6 mb-8 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4 transition-all duration-500"
@@ -39,10 +43,10 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <span class="text-primary">NEXUS</span> CONTROL
+                        <span class="text-primary">NEXUS</span> AZURE
                     </h1>
                     <div class="text-slate-400 text-xs font-mono mt-1 flex gap-2">
-                        <span>PRIVATE_MODE</span>
+                        <span>COSMOS_DB</span>
                         <span class="text-slate-600">|</span>
                         <span :class="{'text-green-400': statusText==='Synced', 'text-red-400': statusText.includes('Error')}">{{ statusText }}</span>
                     </div>
@@ -51,7 +55,7 @@
             <button @click="saveConfig" :disabled="isSaving" class="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all active:scale-95 disabled:opacity-50 group">
                 <span class="flex items-center gap-2">
                     <span v-if="isSaving" class="animate-spin text-xl">⟳</span>
-                    <span v-else>SYNC NOW</span>
+                    <span v-else>SYNC TO CLOUD</span>
                 </span>
             </button>
         </header>
@@ -59,7 +63,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div class="lg:col-span-4 space-y-6">
                 <div class="bg-card border border-border rounded-xl p-6 shadow-lg">
-                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Add Identity</h3>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">New Identity (ID)</h3>
                     <div class="flex gap-2 relative">
                         <span class="absolute left-3 top-2.5 text-slate-500 font-mono">ID:</span>
                         <input v-model="newUserId" @keyup.enter="addUser" type="text" placeholder="e.g. nas" class="w-full border border-slate-600 rounded-lg pl-10 pr-4 py-2 text-sm text-white font-mono">
@@ -72,42 +76,43 @@
                 <transition-group name="list">
                     <div v-for="(userGroups, userId) in config" :key="userId" class="bg-card border border-border rounded-xl p-6 shadow-lg relative group transition-all mb-6">
                         <div class="flex justify-between items-center mb-6 pb-4 border-b border-white/5">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-primary shadow-inner">
+                            <div class="flex items-center gap-4 w-full">
+                                <div class="w-12 h-12 flex-shrink-0 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-primary shadow-inner">
                                     {{ userId.substring(0,2).toUpperCase() }}
                                 </div>
-                                <div>
-                                    <div class="text-2xl font-bold text-white tracking-tight">{{ userId }}</div>
+                                <div class="flex-grow">
+                                    <input type="text" :value="userId" @change="renameUser(userId, $event.target.value)" class="bg-transparent text-2xl font-bold text-white tracking-tight w-full focus:outline-none focus:border-b focus:border-primary transition-all p-0">
+                                    <div class="text-xs font-mono text-slate-400 mt-1">Endpoint: ?id={{ userId }}</div>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button @click="copyLink(userId)" class="p-2 text-slate-400 hover:text-primary transition-colors text-sm font-mono border border-slate-700 rounded bg-slate-800">
-                                    <span v-if="!copyStatus[userId]">📋 Copy Link</span>
-                                    <span v-else class="text-green-400">✨ Copied!</span>
+                            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity absolute right-6 top-6">
+                                <button @click="copyLink(userId)" class="p-2 bg-slate-800 rounded border border-slate-700" :class="copyStatus[userId] ? 'text-green-400' : 'text-slate-400 hover:text-primary'">
+                                    <span v-if="!copyStatus[userId]" class="flex items-center gap-1 text-xs font-bold">📋 COPY</span>
+                                    <span v-else class="flex items-center gap-1 text-xs font-bold">✨ COPIED</span>
                                 </button>
-                                <button @click="deleteUser(userId)" class="text-slate-600 hover:text-red-400 p-2 text-sm">Delete</button>
+                                <button @click="deleteUser(userId)" class="text-slate-600 hover:text-red-400 p-2 bg-slate-800 rounded border border-slate-700">🗑️</button>
                             </div>
                         </div>
 
                         <div class="space-y-4">
                             <div v-for="(links, groupName) in userGroups" :key="groupName" class="bg-slate-900/50 rounded-lg p-4 border border-slate-800/50">
                                 <div class="flex justify-between items-center mb-3">
-                                    <span class="text-sm font-bold text-slate-300 uppercase tracking-wide">{{ groupName }}</span>
+                                    <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" class="bg-transparent text-sm font-bold text-slate-300 uppercase cursor-pointer hover:text-white focus:outline-none focus:text-primary transition-colors">
                                     <div class="flex items-center gap-2">
-                                        <button @click="addLink(userId, groupName)" class="text-[10px] bg-slate-800 hover:bg-primary text-white px-2 py-1 rounded transition">+ LINK</button>
-                                        <button @click="deleteGroup(userId, groupName)" class="text-xs text-slate-600 hover:text-red-400">×</button>
+                                        <button @click="addLink(userId, groupName)" class="text-[10px] bg-slate-800 hover:bg-primary text-white px-2 py-1 rounded transition border border-slate-700">+ LINK</button>
+                                        <button @click="deleteGroup(userId, groupName)" class="text-xs text-slate-600 hover:text-red-400 px-2">×</button>
                                     </div>
                                 </div>
                                 <div class="space-y-2 pl-3">
                                     <div v-for="(url, name) in links" :key="name" class="flex items-center gap-3 group/link">
-                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" class="w-1/3 bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs text-slate-200 focus:text-white">
+                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" class="w-1/3 bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs text-slate-300 focus:text-white focus:border-primary">
                                         <span class="text-slate-600 text-xs">➜</span>
-                                        <input type="text" v-model="userGroups[groupName][name]" class="flex-1 bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs font-mono text-primary">
-                                        <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 opacity-0 group-hover/link:opacity-100">×</button>
+                                        <input type="text" v-model="config[userId][groupName][name]" class="flex-1 bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs font-mono text-primary focus:border-primary">
+                                        <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 opacity-0 group-hover/link:opacity-100 px-2 transition-opacity">×</button>
                                     </div>
                                 </div>
                             </div>
-                            <button @click="addGroup(userId)" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:text-primary rounded-lg text-xs font-bold uppercase tracking-widest transition-colors">+ New Group</button>
+                            <button @click="addGroup(userId)" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:text-primary hover:border-primary rounded-lg text-xs font-bold uppercase tracking-widest transition-all">+ New Group</button>
                         </div>
                     </div>
                 </transition-group>
@@ -116,12 +121,13 @@
     </div>
 
     <script>
-        // ✅ 个人自用配置
+        // ✅ 1. 定义后端地址 (Azure Function)
         const BASE_URL = 'https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/api/nexus-handler';
+        // ✅ 2. 定义密钥 (你自用，硬编码没问题)
         const ACCESS_CODE = 'KD0qUaWPZgOBfzFbQtiZTfeluyK98b9w2iqpE1LLiiWNAzFuWJ2vfw==';
         
-        // 拼接完整 URL (既用于管理，也用于生成带 Key 的跳转链接，保证 100% 可用)
-        const FULL_URL = `${BASE_URL}?code=${ACCESS_CODE}`;
+        // 拼接完整的管理 API 地址
+        const API_URL = `${BASE_URL}?code=${ACCESS_CODE}`;
 
         const { createApp, ref, onMounted, watch } = Vue;
         createApp({
@@ -134,13 +140,15 @@
                 const copyStatus = ref({});
                 let timer = null;
 
-                // 读取
+                // --- 核心网络请求 ---
+
                 const fetchConfig = async () => {
                     try {
                         statusText.value = 'Syncing...';
-                        const res = await fetch(`${FULL_URL}&action=get`);
-                        if (!res.ok) throw new Error('Network error');
-                        config.value = await res.json() || {};
+                        const res = await fetch(`${API_URL}&action=get`);
+                        if (!res.ok) throw new Error('Network Error');
+                        const data = await res.json();
+                        config.value = data || {};
                         statusText.value = 'Synced';
                         statusColor.value = 'bg-green-400';
                     } catch (e) {
@@ -150,17 +158,16 @@
                     }
                 };
 
-                // 保存
                 const saveConfig = async () => {
                     if (Object.keys(config.value).length === 0) return;
                     isSaving.value = true;
                     try {
-                        const res = await fetch(`${FULL_URL}&action=save`, {
+                        const res = await fetch(`${API_URL}&action=save`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(config.value)
                         });
-                        if (res.ok) {
+                        if(res.ok) {
                             statusText.value = 'Synced';
                             statusColor.value = 'bg-green-400';
                         } else { throw new Error(); }
@@ -172,59 +179,92 @@
                     }
                 };
 
-                // 复制链接 (包含 Key，确保在任何地方都能访问)
+                // --- 业务逻辑 (完美复刻稳定版) ---
+
+                const addUser = () => {
+                    const id = newUserId.value.trim();
+                    if (id && !config.value[id]) {
+                        config.value[id] = { 'Default': { 'My Link': 'http://' } };
+                        newUserId.value = '';
+                    }
+                };
+
+                // 复制链接：包含 Code 保证跳转成功
                 const copyLink = (uid) => {
-                    // 如果你开启了 Azure 的匿名访问 (Anonymous)，可以把下面的 `&code=${ACCESS_CODE}` 删掉，链接会更好看
-                    const url = `${BASE_URL}?code=${ACCESS_CODE}&id=${uid}`; 
+                    const url = `${BASE_URL}?code=${ACCESS_CODE}&id=${uid}`;
                     navigator.clipboard.writeText(url);
                     copyStatus.value[uid] = true;
                     setTimeout(() => copyStatus.value[uid] = false, 2000);
                 };
 
-                // 自动保存 (防抖优化)
+                // 自动保存监听
                 watch(config, () => {
-                    if(statusText.value !== 'Syncing...') {
+                    if (statusText.value !== 'Syncing...') {
                         statusText.value = 'Modified...';
                         statusColor.value = 'bg-yellow-500';
                     }
-                    if(timer) clearTimeout(timer);
-                    timer = setTimeout(saveConfig, 2000); // 2秒后自动保存
+                    if (timer) clearTimeout(timer);
+                    timer = setTimeout(saveConfig, 2000);
                 }, { deep: true });
 
-                // 逻辑操作
-                const addUser = () => {
-                    const id = newUserId.value.trim();
-                    if (id && !config.value[id]) {
-                        config.value[id] = { 'Default': { 'Home': 'http://' } };
-                        newUserId.value = '';
+                // 删除逻辑
+                const deleteUser = (id) => { if(confirm(`Confirm delete ID: ${id}?`)) delete config.value[id]; };
+                const deleteGroup = (id, gn) => delete config.value[id][gn];
+                const deleteLink = (id, gn, ln) => delete config.value[id][gn][ln];
+
+                // 添加逻辑
+                const addGroup = (id) => {
+                    const newName = 'Group ' + (Object.keys(config.value[id]).length + 1);
+                    config.value[id][newName] = { 'New Link': 'http://' };
+                };
+                const addLink = (id, gn) => config.value[id][gn]['New Link'] = 'http://';
+
+                // --- 核心重命名逻辑 (修复了旧版可能丢失数据的隐患) ---
+
+                // 重命名用户 ID (Key)
+                const renameUser = (oldName, newName) => {
+                    const n = newName.trim();
+                    if (n && n !== oldName && !config.value[n]) {
+                        // 保持原数据顺序创建新对象
+                        const newConfig = {};
+                        for (const key in config.value) {
+                            if (key === oldName) {
+                                newConfig[n] = config.value[oldName];
+                            } else {
+                                newConfig[key] = config.value[key];
+                            }
+                        }
+                        config.value = newConfig; // 替换整个对象以触发更新
                     }
                 };
-                
-                const deleteUser = (id) => { if(confirm(`Delete ID: ${id}?`)) delete config.value[id]; };
-                const addGroup = (id) => {
-                    const groupName = 'Group ' + (Object.keys(config.value[id]).length + 1);
-                    config.value[id][groupName] = { 'New Link': 'http://' };
+
+                // 重命名分组 (Key)
+                const renameGroup = (id, oldName, newName) => {
+                    const n = newName.trim();
+                    if (n && n !== oldName && !config.value[id][n]) {
+                        const data = config.value[id][oldName];
+                        config.value[id][n] = data;
+                        delete config.value[id][oldName];
+                    }
                 };
-                const deleteGroup = (id, gn) => delete config.value[id][gn];
-                const addLink = (id, gn) => config.value[id][gn]['New Link'] = 'http://';
-                const deleteLink = (id, gn, ln) => delete config.value[id][gn][ln];
-                
-                // ✅ 修复：防止改名为空时误删
-                const renameLink = (id, gn, o, n) => {
-                    const newName = n.trim();
-                    if(newName && newName !== o && !config.value[id][gn][newName]) {
-                        config.value[id][gn][newName] = config.value[id][gn][o];
-                        delete config.value[id][gn][o];
-                    } else if (newName === '') {
-                        // 如果用户删空了，强制刷新视图或者不处理（这里依靠Vue双向绑定，通常输入框会变空但不删除数据）
-                        // 实际上因为 value 绑定的是 key，这里最好是刷新列表。
-                        // 简单处理：不做操作，用户刷新页面会恢复，或者你可以添加强制重新渲染逻辑
+
+                // 重命名链接 (Key)
+                const renameLink = (id, gn, oldName, newName) => {
+                    const n = newName.trim();
+                    if (n && n !== oldName && !config.value[id][gn][n]) {
+                        const url = config.value[id][gn][oldName];
+                        config.value[id][gn][n] = url;
+                        delete config.value[id][gn][oldName];
                     }
                 };
 
                 onMounted(fetchConfig);
 
-                return { config, newUserId, isSaving, statusText, statusColor, copyStatus, saveConfig, addUser, deleteUser, addGroup, deleteGroup, addLink, deleteLink, renameLink, copyLink };
+                return { 
+                    config, newUserId, isSaving, statusText, statusColor, copyStatus, 
+                    saveConfig, addUser, deleteUser, addGroup, deleteGroup, addLink, deleteLink, 
+                    renameUser, renameGroup, renameLink, copyLink 
+                };
             }
         }).mount('#app');
     </script>
