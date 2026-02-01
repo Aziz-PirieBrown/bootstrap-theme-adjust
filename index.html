@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS | Azure Link Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⭐</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#0f172a',
+                        card: '#1e293b',
+                        border: '#334155',
+                        input: '#0f172a',
+                        primary: '#38bdf8',
+                        accent: '#22d3ee',
+                        success: '#4ade80',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .list-enter-active, .list-leave-active { transition: all 0.3s ease; }
+        .list-enter-from, .list-leave-to { opacity: 0; transform: translateY(10px); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        input { background: rgba(15, 23, 42, 0.6); transition: all 0.2s; }
+        input:focus { outline: none; border-color: #38bdf8; background: rgba(15, 23, 42, 0.9); }
+    </style>
+</head>
+
+<body class="min-h-screen pb-20">
+    <div id="app" class="max-w-6xl mx-auto p-4 md:p-8">
+        <header class="bg-card border border-border rounded-xl p-6 mb-8 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="relative">
+                    <div class="w-3 h-3 rounded-full" :class="statusColor"></div>
+                    <div v-if="statusText === 'Synced'" class="absolute top-0 left-0 w-3 h-3 rounded-full bg-green-400 animate-ping opacity-75"></div>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+                        <span class="text-primary">NEXUS</span> AZURE
+                    </h1>
+                    <div class="text-slate-400 text-xs font-mono mt-1 flex gap-2">
+                        <span>CLOUD_MODE</span>
+                        <span class="text-slate-600">|</span>
+                        <span :class="{'text-green-400': statusText==='Synced', 'text-red-400': statusText.includes('Error')}">{{ statusText }}</span>
+                    </div>
+                </div>
+            </div>
+            <button @click="saveConfig" :disabled="isSaving" class="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all active:scale-95 disabled:opacity-50 group">
+                <span class="flex items-center gap-2">
+                    <span v-if="isSaving" class="animate-spin">⟳</span>
+                    <span v-else>SYNC TO CLOUD</span>
+                </span>
+            </button>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-4 space-y-6">
+                <div class="bg-card border border-border rounded-xl p-6 shadow-lg">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">New Identity</h3>
+                    <div class="flex gap-2 relative">
+                        <span class="absolute left-3 top-2.5 text-slate-500 font-mono">ID:</span>
+                        <input v-model="newUserId" @keyup.enter="addUser" type="text" class="w-full border border-slate-600 rounded-lg pl-10 pr-4 py-2 text-sm text-white font-mono">
+                        <button @click="addUser" class="bg-slate-700 hover:bg-slate-600 text-white px-4 rounded-lg border border-slate-600">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 space-y-6">
+                <transition-group name="list">
+                    <div v-for="(userGroups, userId) in config" :key="userId" class="bg-card border border-border rounded-xl p-6 shadow-lg relative group transition-all">
+                        <div class="flex justify-between items-center mb-6 pb-4 border-b border-white/5">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-primary">
+                                    {{ userId.substring(0,2).toUpperCase() }}
+                                </div>
+                                <div>
+                                    <input type="text" :value="userId" @change="renameUser(userId, $event.target.value)" class="bg-transparent text-2xl font-bold text-white tracking-tight w-full focus:outline-none">
+                                    <div class="text-xs font-mono text-slate-400">Endpoint: ?id={{ userId }}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button @click="copyLink(userId)" class="p-2" :class="copyStatus[userId] ? 'text-green-400' : 'text-slate-600 hover:text-primary'">
+                                    <svg v-if="!copyStatus[userId]" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" stroke-width="2"/></svg>
+                                    <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 13l4 4L19 7" stroke-width="2"/></svg>
+                                </button>
+                                <button @click="deleteUser(userId)" class="text-slate-600 hover:text-red-400 p-2"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"/></svg></button>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div v-for="(links, groupName) in userGroups" :key="groupName" class="bg-slate-900/50 rounded-lg p-4 border border-slate-800/50">
+                                <div class="flex justify-between items-center mb-3">
+                                    <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" class="bg-transparent text-sm font-bold text-slate-300 uppercase cursor-pointer">
+                                    <div class="flex items-center gap-2">
+                                        <button @click="addLink(userId, groupName)" class="text-xs bg-slate-800 hover:bg-primary px-2 py-1 rounded transition">+ LINK</button>
+                                        <button @click="deleteGroup(userId, groupName)" class="text-xs text-slate-500">×</button>
+                                    </div>
+                                </div>
+                                <div class="space-y-2 pl-3">
+                                    <div v-for="(url, name) in links" :key="name" class="flex items-center gap-3 group/link">
+                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" class="w-1/3 bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs text-slate-200">
+                                        <span class="text-slate-600 text-xs">➜</span>
+                                        <input type="text" v-model="config[userId][groupName][name]" class="flex-1 bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs font-mono text-primary">
+                                        <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 opacity-0 group-hover/link:opacity-100">×</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button @click="addGroup(userId)" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:text-primary rounded-lg text-xs font-bold uppercase tracking-widest">+ New Group</button>
+                        </div>
+                    </div>
+                </transition-group>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ 请将此处替换为你带 code=... 的 Azure Function URL
+        const SERVICE_URL = 'https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/api/nexus-handler?code=KD0qUaWPZgOBfzFbQtiZTfeluyK98b9w2iqpE1LLiiWNAzFuWJ2vfw==
+';
+
+        const { createApp, ref, onMounted, watch } = Vue;
+        createApp({
+            setup() {
+                const config = ref({});
+                const newUserId = ref('');
+                const isSaving = ref(false);
+                const statusText = ref('Connecting...');
+                const statusColor = ref('bg-yellow-500');
+                const copyStatus = ref({});
+                let timer = null;
+
+                const fetchConfig = async () => {
+                    try {
+                        statusText.value = 'Syncing...';
+                        const res = await fetch(`${SERVICE_URL}&action=get`);
+                        const data = await res.json();
+                        config.value = data || {};
+                        statusText.value = 'Synced';
+                        statusColor.value = 'bg-green-400';
+                    } catch (e) {
+                        statusText.value = 'Connect Error';
+                        statusColor.value = 'bg-red-500';
+                    }
+                };
+
+                const saveConfig = async () => {
+                    isSaving.value = true;
+                    try {
+                        await fetch(`${SERVICE_URL}&action=save`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(config.value)
+                        });
+                        statusText.value = 'Synced';
+                        statusColor.value = 'bg-green-400';
+                    } catch (e) {
+                        statusText.value = 'Save Error';
+                        statusColor.value = 'bg-red-500';
+                    } finally {
+                        isSaving.value = false;
+                    }
+                };
+
+                const addUser = () => {
+                    const id = newUserId.value.trim();
+                    if (id && !config.value[id]) {
+                        config.value[id] = { 'root': { 'My NAS': 'http://' } };
+                        newUserId.value = '';
+                    }
+                };
+
+                const copyLink = (uid) => {
+                    const url = `${SERVICE_URL}&id=${uid}`;
+                    navigator.clipboard.writeText(url);
+                    copyStatus.value[uid] = true;
+                    setTimeout(() => copyStatus.value[uid] = false, 2000);
+                };
+
+                // Watcher for Auto-save (Optional, triggered 2s after change)
+                watch(config, () => {
+                    clearTimeout(timer);
+                    statusText.value = 'Modified...';
+                    timer = setTimeout(saveConfig, 2000);
+                }, { deep: true });
+
+                const deleteUser = (id) => delete config.value[id];
+                const addGroup = (id) => config.value[id]['New Group'] = { 'Item': 'http://' };
+                const deleteGroup = (id, gn) => delete config.value[id][gn];
+                const addLink = (id, gn) => config.value[id][gn]['New Link'] = 'http://';
+                const deleteLink = (id, gn, ln) => delete config.value[id][gn][ln];
+                const renameUser = (o, n) => { if(n && !config.value[n]) { config.value[n] = config.value[o]; delete config.value[o]; }};
+                const renameGroup = (id, o, n) => { if(n && !config.value[id][n]) { config.value[id][n] = config.value[id][o]; delete config.value[id][o]; }};
+                const renameLink = (id, gn, o, n) => { if(n && !config.value[id][gn][n]) { config.value[id][gn][n] = config.value[id][gn][o]; delete config.value[id][gn][o]; }};
+
+                onMounted(fetchConfig);
+                return { config, newUserId, isSaving, statusText, statusColor, copyStatus, saveConfig, addUser, deleteUser, addGroup, deleteGroup, addLink, deleteLink, renameUser, renameGroup, renameLink, copyLink };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
