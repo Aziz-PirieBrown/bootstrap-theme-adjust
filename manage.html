@@ -2,156 +2,393 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>Nexus Ìø×ªÖÐ...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); }
+        /* Òþ²Ø¹ö¶¯Ìõµ«±£Áô¹¦ÄÜ */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="h-screen flex flex-col overflow-hidden">
 
-    <div id="loader" class="text-center">
-        <div class="inline-block w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full spin mb-4"></div>
-        <p class="text-slate-400 text-sm">ÕýÔÚ½âÎöÅäÖÃ...</p>
+    <div id="loginLayer" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-4">
+        <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl">
+            <div class="text-center mb-8">
+                <div class="inline-block p-3 rounded-full bg-slate-700 mb-4">
+                    <i class="fas fa-terminal text-2xl text-sky-400"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white">Nexus ¿ØÖÆÌ¨</h1>
+                <p class="text-slate-400 text-sm mt-2">Serverless Configuration Manager</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">GitHub Personal Access Token</label>
+                    <input type="password" id="tokenInput" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-sky-500 transition-all" placeholder="ghp_xxxxxxxxxxxx">
+                </div>
+                <button onclick="Auth.login()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-lg transition-colors shadow-lg shadow-sky-900/50">
+                    <i class="fas fa-key mr-2"></i> ÑéÖ¤²¢½øÈë
+                </button>
+                <p class="text-xs text-center text-slate-600 mt-4">Token ½ö±£´æÔÚ±¾µØ LocalStorage£¬Ðè¾ß±¸ Repo ¶ÁÐ´È¨ÏÞ¡£</p>
+            </div>
+        </div>
     </div>
 
-    <div id="app" class="max-w-md w-full hidden">
-        <h2 class="text-2xl font-bold text-white text-center mb-6">Hello, <span id="userName" class="text-sky-400">User</span></h2>
-        <div id="groupsContainer"></div>
-        <p class="text-center text-slate-600 text-xs mt-8">Powered by Nexus Static</p>
+    <div id="appLayer" class="flex-1 flex hidden relative">
+        
+        <aside class="w-72 bg-slate-800 border-r border-slate-700 flex flex-col z-20">
+            <div class="h-16 flex items-center justify-between px-6 border-b border-slate-700 bg-slate-800">
+                <span class="font-bold text-sky-400 tracking-wide">USERS</span>
+                <button onclick="Auth.logout()" class="text-slate-500 hover:text-rose-500 transition-colors" title="ÍË³ö"><i class="fas fa-power-off"></i></button>
+            </div>
+            
+            <div id="userList" class="flex-1 overflow-y-auto p-3 space-y-1 no-scrollbar">
+                </div>
+
+            <div class="p-4 border-t border-slate-700 bg-slate-800">
+                <button onclick="Actions.createUser()" class="w-full py-2 border border-dashed border-slate-600 text-slate-400 hover:text-sky-400 hover:border-sky-400 rounded transition-all text-sm">
+                    <i class="fas fa-plus mr-1"></i> ÐÂ½¨ ID (User)
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col min-w-0 bg-[#0f172a] relative">
+            <header class="h-16 border-b border-slate-700 flex items-center justify-between px-8 bg-slate-800/50 backdrop-blur-md sticky top-0 z-10">
+                <div class="flex items-center gap-4">
+                    <h2 id="currentUserId" class="text-xl font-bold text-white">...</h2>
+                    <span id="saveStatus" class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-500 transition-all opacity-0">ÒÑ±£´æ</span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="Data.fetch()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm font-medium transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>ÖØÖÃ
+                    </button>
+                    <button onclick="Data.save()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all hover:scale-105">
+                        <i class="fas fa-save mr-2"></i>±£´æ¸ü¸Ä
+                    </button>
+                </div>
+            </header>
+
+            <div id="editorContainer" class="flex-1 overflow-y-auto p-8 scroll-smooth">
+                <div id="groupsWrapper" class="max-w-4xl mx-auto space-y-6 pb-20">
+                    </div>
+                
+                <div id="emptyState" class="hidden h-full flex flex-col items-center justify-center text-slate-600 opacity-60">
+                    <i class="fas fa-cube text-6xl mb-4"></i>
+                    <p>ÇëÔÚ×ó²àÑ¡ÔñÒ»¸ö ID ½øÐÐ±à¼­</p>
+                </div>
+
+                <div id="addGroupBtnWrapper" class="max-w-4xl mx-auto hidden">
+                    <button onclick="Actions.addGroup()" class="group flex items-center text-slate-500 hover:text-sky-400 transition-colors py-4">
+                        <span class="w-8 h-8 rounded-full border border-slate-600 group-hover:border-sky-400 flex items-center justify-center mr-3">
+                            <i class="fas fa-plus"></i>
+                        </span>
+                        <span class="font-medium">Ìí¼ÓÐÂ·Ö×é (Group)</span>
+                    </button>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script>
-        (async function() {
-            // ================= ÅäÖÃÇøÓò (YML×Ô¶¯Ìî³ä) =================
-            const REPO_OWNER = "__REPO_OWNER__";
-            const REPO_NAME = "__REPO_NAME__";
-            const FILE_PATH = "config.json";
-            // ========================================================
+        /**
+         * ºËÐÄÅäÖÃÇø
+         * ÕâÐ©Õ¼Î»·û»á±»ÄãµÄ YML ×Ô¶¯Ìæ»»
+         */
+        const CONFIG = {
+            owner: "__REPO_OWNER__",
+            repo: "__REPO_NAME__",
+            path: "config.json"
+        };
 
-            // 1. »ñÈ¡ URL ²ÎÊýÖÐµÄ id
-            const params = new URLSearchParams(window.location.search);
-            const id = params.get('id');
-            const loader = document.getElementById('loader');
+        // È«¾Ö×´Ì¬
+        let store = {
+            data: {},       // ÍêÕûµÄ JSON Êý¾Ý
+            sha: null,      // GitHub ÎÄ¼þ SHA (ÓÃÓÚ°æ±¾¿ØÖÆ)
+            activeId: null, // µ±Ç°Ñ¡ÖÐµÄ User ID
+            token: localStorage.getItem('nexus_pat')
+        };
 
-            if (!id) {
-                // Èç¹ûÃ»ÓÐ ID£¬ÏÔÊ¾´íÎó»òÌø×ª»ØÖ÷Ò³
-                loader.innerHTML = '<p class="text-rose-500">´íÎó£ºÎ´Ìá¹© ID ²ÎÊý</p>';
-                return;
+        // ----------------------------------------------------
+        // 1. ÈÏÖ¤Ä£¿é
+        // ----------------------------------------------------
+        const Auth = {
+            init() {
+                if (store.token) {
+                    document.getElementById('loginLayer').classList.add('hidden');
+                    document.getElementById('appLayer').classList.remove('hidden');
+                    Data.fetch();
+                }
+            },
+            login() {
+                const val = document.getElementById('tokenInput').value.trim();
+                if (!val.startsWith('gh')) return alert('Token ¸ñÊ½¿´ÆðÀ´²»¶Ô (Ó¦ÒÔ gh ¿ªÍ·)');
+                localStorage.setItem('nexus_pat', val);
+                store.token = val;
+                location.reload();
+            },
+            logout() {
+                if(confirm('È·¶¨ÍË³öÂð£¿Token ½«±»Çå³ý¡£')) {
+                    localStorage.removeItem('nexus_pat');
+                    location.reload();
+                }
             }
+        };
 
-            // 2. »ñÈ¡ Token (Óë¹ÜÀíÒ³ÃæÂß¼­Ò»ÖÂ£¬´Ó±¾µØ´æ´¢¶ÁÈ¡)
-            // ÕâÑùÈç¹ûÄãÔÚ¹ÜÀíÒ³ÃæµÇÂ¼¹ý£¬ÕâÀïÒ²»áÏíÊÜ¸ßÆµ API µ÷ÓÃÈ¨ÏÞ
-            const token = localStorage.getItem('gh_pat');
-
-            // 3. ºËÐÄ»ñÈ¡Êý¾Ýº¯Êý (¸´ÓÃ¹ÜÀíÒ³ÃæµÄÂß¼­ + Ôö¼Ó¶µµ×)
-            async function fetchConfig() {
+        // ----------------------------------------------------
+        // 2. Êý¾Ý²ã (GitHub API)
+        // ----------------------------------------------------
+        const Data = {
+            async fetch() {
+                UI.toast('ÕýÔÚÀ­È¡ÅäÖÃ...', 'loading');
                 try {
-                    // ²ßÂÔ A: ÓÅÏÈ³¢ÊÔ GitHub API (Êý¾Ý×îÐÂ)
-                    // Èç¹ûÓÐ Token£¬´øÉÏ Token Í·£¬´ó·ùÌá¸ßËÙÂÊÏÞÖÆ²¢Ö§³ÖË½ÓÐ¿â
-                    const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?v=${Date.now()}`;
-                    const headers = token ? { 'Authorization': `token ${token}` } : {};
+                    const url = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}?t=${Date.now()}`;
+                    const res = await fetch(url, { headers: { 'Authorization': `token ${store.token}` } });
                     
-                    console.log(token ? "Ê¹ÓÃ Token ÇëÇó API..." : "ÎÞ Token£¬³¢ÊÔ¹«¿ªÇëÇó...");
-                    
-                    const res = await fetch(apiUrl, { headers });
-                    
-                    if (res.ok) {
-                        const data = await res.json();
-                        // Ê¹ÓÃÓë¹ÜÀíÒ³ÃæÍêÈ«Ò»ÖÂµÄ½âÂë·½Ê½£ºbase64 -> escape -> decodeURIComponent
-                        // È·±£ÖÐÎÄ²»»áÂÒÂë
-                        return JSON.parse(decodeURIComponent(escape(atob(data.content))));
+                    if (res.status === 404) {
+                        store.data = {}; // ÐÂ²Ö¿âÄ¬ÈÏ¿Õ¶ÔÏó
+                        store.sha = null;
+                        UI.initSidebar();
+                        return;
                     }
                     
-                    throw new Error("API ÇëÇó·Ç 200");
+                    if (!res.ok) throw new Error(`API Error ${res.status}`);
+                    
+                    const json = await res.json();
+                    store.sha = json.sha;
+                    // UTF-8 ½âÂë
+                    const content = decodeURIComponent(escape(window.atob(json.content)));
+                    store.data = JSON.parse(content);
+                    
+                    UI.toast('¼ÓÔØ³É¹¦', 'success');
+                    UI.initSidebar();
+                    
+                    // Èç¹ûÖ®Ç°Ñ¡ÖÐÁËÈË£¬Ë¢ÐÂºó±£³ÖÑ¡ÖÐ
+                    if(store.activeId && store.data[store.activeId]) {
+                        UI.renderEditor(store.activeId);
+                    } else {
+                        store.activeId = null;
+                        UI.toggleEmptyState(true);
+                    }
 
                 } catch (e) {
-                    console.warn("GitHub API »ñÈ¡Ê§°Ü (¿ÉÄÜÊÇÏÞÁ÷»òÎÞÈ¨ÏÞ)£¬ÇÐ»»ÖÁ¾²Ì¬ÎÄ¼þ¶µµ×...", e);
+                    console.error(e);
+                    UI.toast('¼ÓÔØÊ§°Ü: ' + e.message, 'error');
+                    if(e.message.includes('401')) Auth.logout(); // Token Ê§Ð§
+                }
+            },
+
+            async save() {
+                if (!confirm('È·¶¨Òª½«¸ü¸ÄÍÆËÍµ½ GitHub Âð£¿Õâ»á¼´Ê±ÉúÐ§¡£')) return;
+                UI.toast('ÕýÔÚÍÆËÍ...', 'loading');
+
+                try {
+                    // ¸ñÊ½»¯²¢ UTF-8 ±àÂë
+                    const jsonStr = JSON.stringify(store.data, null, 2);
+                    const b64Content = window.btoa(unescape(encodeURIComponent(jsonStr)));
                     
-                    // ²ßÂÔ B: ¶µµ×¶ÁÈ¡¾²Ì¬ÎÄ¼þ (Azure/GitHub Pages ¹¹½¨ºóµÄÎÄ¼þ)
-                    // ÓÅµã£º¼«¿ì¡¢ÎÞÏÞÁ÷£»È±µã£º¿ÉÄÜÓÐ¼¸·ÖÖÓµÄ¹¹½¨ÑÓ³Ù
-                    const fallback = await fetch(`./config.json?v=${Date.now()}`);
-                    if (!fallback.ok) throw new Error("¾²Ì¬ÎÄ¼þÒ²ÎÞ·¨¶ÁÈ¡");
-                    return await fallback.json();
+                    const body = {
+                        message: `Nexus Update: ${new Date().toLocaleString()}`,
+                        content: b64Content,
+                        sha: store.sha
+                    };
+
+                    const res = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${store.token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(body)
+                    });
+
+                    if (!res.ok) throw new Error('Write Failed');
+                    
+                    const result = await res.json();
+                    store.sha = result.content.sha; // ¸üÐÂ SHA ·ÀÖ¹³åÍ»
+                    UI.toast('±£´æ³É¹¦£¡', 'success');
+
+                } catch (e) {
+                    console.error(e);
+                    UI.toast('±£´æÊ§°Ü£¬Çë¼ì²é¿ØÖÆÌ¨', 'error');
                 }
             }
+        };
 
-            try {
-                // 4. Ö´ÐÐ»ñÈ¡²¢²éÕÒÓÃ»§
-                const config = await fetchConfig();
-                const userData = config[id];
-
-                if (!userData) {
-                    loader.innerHTML = `<p class="text-rose-500 font-bold">Î´ÕÒµ½ ID ÅäÖÃ: ${id}</p>`;
-                    return;
+        // ----------------------------------------------------
+        // 3. Âß¼­²Ù×÷²ã
+        // ----------------------------------------------------
+        const Actions = {
+            createUser() {
+                const id = prompt("ÇëÊäÈëÐÂ ID (×ÖÄ¸/Êý×Ö):");
+                if (!id) return;
+                if (store.data[id]) return alert("ID ÒÑ´æÔÚ");
+                
+                // Ä¬ÈÏÄ£°å
+                store.data[id] = { "³£ÓÃ": { "Google": "https://google.com" } };
+                UI.initSidebar();
+                UI.selectUser(id);
+            },
+            deleteUser(id, e) {
+                e.stopPropagation(); // ·ÀÖ¹´¥·¢ select
+                if (!confirm(`¾¯¸æ£ºÈ·¶¨³¹µ×É¾³ýÓÃ»§ [${id}] Âð£¿`)) return;
+                delete store.data[id];
+                if (store.activeId === id) {
+                    store.activeId = null;
+                    UI.toggleEmptyState(true);
                 }
-
-                // 5. ÌáÈ¡ËùÓÐÓÐÐ§Á´½Ó
-                let allLinks = [];
-                for (let groupName in userData) {
-                    const groupItems = userData[groupName];
-                    for (let linkName in groupItems) {
-                        const url = groupItems[linkName];
-                        // ¹ýÂË¿ÕÁ´½Ó
-                        if (url && url.startsWith('http')) {
-                            allLinks.push({ group: groupName, name: linkName, url: url });
-                        }
-                    }
-                }
-
-                // 6. ·ÖÖ§Âß¼­
-                if (allLinks.length === 1) {
-                    // === Çé¿ö A: Ö»ÓÐÒ»¸öÁ´½Ó -> Ë²¼ä×Ô¶¯Ìø×ª ===
-                    window.location.replace(allLinks[0].url);
-                } else if (allLinks.length > 1) {
-                    // === Çé¿ö B: ¶à¸öÁ´½Ó -> äÖÈ¾ UI Ãæ°å ===
-                    renderUI(id, userData);
-                } else {
-                    loader.innerHTML = `<p class="text-slate-500">¸Ã ID ÏÂÃ»ÓÐÅäÖÃÓÐÐ§Á´½Ó</p>`;
-                }
-
-            } catch (err) {
-                loader.innerHTML = `<p class="text-rose-400">¼ÓÔØÊ§°Ü: ${err.message}</p>`;
+                UI.initSidebar();
+            },
+            addGroup() {
+                const name = prompt("·Ö×éÃû³Æ (Èç: ¹¤×÷, ÓéÀÖ):");
+                if (!name) return;
+                if (store.data[store.activeId][name]) return alert("·Ö×éÒÑ´æÔÚ");
+                
+                store.data[store.activeId][name] = {};
+                UI.renderEditor(store.activeId);
+            },
+            renameGroup(oldName, newName) {
+                if (!newName || oldName === newName) return;
+                const userData = store.data[store.activeId];
+                // ±£³ÖË³ÐòÓÐÐ©Âé·³£¬ÕâÀï¼ò»¯ÎªÖØÐÂ¸³Öµ£¬Ë³Ðò¿ÉÄÜ»á±äµ½×îºó
+                const content = userData[oldName];
+                delete userData[oldName];
+                userData[newName] = content;
+                UI.renderEditor(store.activeId);
+            },
+            deleteGroup(groupName) {
+                if (!confirm("É¾³ý´Ë·Ö×é¼°ÆäËùÓÐÁ´½Ó£¿")) return;
+                delete store.data[store.activeId][groupName];
+                UI.renderEditor(store.activeId);
+            },
+            addLink(groupName) {
+                const name = "Link " + Math.floor(Math.random()*1000);
+                store.data[store.activeId][groupName][name] = "";
+                UI.renderEditor(store.activeId);
+            },
+            updateLinkKey(groupName, oldKey, newKey) {
+                if (!newKey || oldKey === newKey) return;
+                const group = store.data[store.activeId][groupName];
+                const url = group[oldKey];
+                delete group[oldKey];
+                group[newKey] = url;
+                // ²»Ë¢ÐÂ UI ÒÔ±£³Ö½¹µã
+            },
+            updateLinkVal(groupName, key, newVal) {
+                store.data[store.activeId][groupName][key] = newVal;
+            },
+            deleteLink(groupName, key) {
+                delete store.data[store.activeId][groupName][key];
+                UI.renderEditor(store.activeId);
             }
+        };
 
-            // UI äÖÈ¾º¯Êý (Tailwind ÑùÊ½)
-            function renderUI(userId, groups) {
-                document.getElementById('userName').innerText = userId;
-                const container = document.getElementById('groupsContainer');
-                let html = '';
+        // ----------------------------------------------------
+        // 4. UI äÖÈ¾²ã
+        // ----------------------------------------------------
+        const UI = {
+            toggleEmptyState(isEmpty) {
+                document.getElementById('emptyState').classList.toggle('hidden', !isEmpty);
+                document.getElementById('groupsWrapper').innerHTML = '';
+                document.getElementById('addGroupBtnWrapper').classList.toggle('hidden', isEmpty);
+                document.getElementById('currentUserId').innerText = isEmpty ? '...' : store.activeId;
+            },
 
-                for (const [groupName, links] of Object.entries(groups)) {
-                    // ÔÙ´Î¹ýÂËÈ·±£Ö»äÖÈ¾ÓÐÐ§Á´½Ó
-                    const validLinks = Object.entries(links).filter(([_, url]) => url && url.startsWith('http'));
-                    if (validLinks.length === 0) continue;
-
-                    let linksHtml = validLinks.map(([name, url]) => `
-                        <a href="${url}" target="_blank" class="flex justify-between items-center px-5 py-4 border border-slate-700 rounded-xl bg-slate-800 hover:bg-slate-700 hover:border-sky-500 text-slate-200 transition-all mb-3 group shadow-md">
-                            <span class="font-medium">${name}</span>
-                            <span class="text-slate-600 group-hover:text-sky-400 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                </svg>
-                            </span>
-                        </a>
-                    `).join('');
-
-                    html += `
-                        <div class="mb-6 animate-fade-in-up">
-                            <h3 class="text-xs font-bold text-slate-500 uppercase mb-3 tracking-widest pl-1">${groupName}</h3>
-                            <div class="flex flex-col">${linksHtml}</div>
-                        </div>
+            initSidebar() {
+                const list = document.getElementById('userList');
+                list.innerHTML = '';
+                Object.keys(store.data).forEach(id => {
+                    const el = document.createElement('div');
+                    const isActive = id === store.activeId;
+                    el.className = `group flex justify-between items-center px-4 py-3 rounded-lg cursor-pointer transition-all mb-1 ${isActive ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/50' : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'}`;
+                    el.onclick = () => UI.selectUser(id);
+                    el.innerHTML = `
+                        <span class="font-medium truncate">${id}</span>
+                        <button onclick="Actions.deleteUser('${id}', event)" class="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-300 transition-opacity"><i class="fas fa-trash-alt"></i></button>
                     `;
-                }
+                    list.appendChild(el);
+                });
+            },
 
-                container.innerHTML = html;
-                loader.classList.add('hidden');
-                document.getElementById('app').classList.remove('hidden');
+            selectUser(id) {
+                store.activeId = id;
+                UI.initSidebar(); // Ë¢ÐÂ¸ßÁÁ
+                UI.toggleEmptyState(false);
+                UI.renderEditor(id);
+            },
+
+            renderEditor(id) {
+                const container = document.getElementById('groupsWrapper');
+                container.innerHTML = '';
+                const userData = store.data[id];
+
+                Object.entries(userData).forEach(([groupName, links]) => {
+                    const card = document.createElement('div');
+                    card.className = "bg-slate-800 border border-slate-700 rounded-xl p-6 relative group/card hover:border-slate-600 transition-all";
+                    
+                    // ¹¹½¨Á´½ÓÁÐ±í
+                    let linksHtml = '';
+                    Object.entries(links).forEach(([linkName, url]) => {
+                        linksHtml += `
+                            <div class="flex gap-3 mb-3 items-center">
+                                <div class="w-1/3 relative">
+                                    <input type="text" value="${linkName}" 
+                                        onchange="Actions.updateLinkKey('${groupName}', '${linkName}', this.value)"
+                                        class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all placeholder-slate-600" 
+                                        placeholder="Ãû³Æ">
+                                </div>
+                                <div class="flex-1 relative">
+                                    <input type="text" value="${url}" 
+                                        onchange="Actions.updateLinkVal('${groupName}', '${linkName}', this.value)"
+                                        class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-sky-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all placeholder-slate-600 font-mono" 
+                                        placeholder="https://...">
+                                </div>
+                                <button onclick="Actions.deleteLink('${groupName}', '${linkName}')" class="text-slate-600 hover:text-rose-500 w-8 h-8 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"><i class="fas fa-times"></i></button>
+                            </div>
+                        `;
+                    });
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center mb-5 pb-2 border-b border-slate-700/50">
+                            <div class="flex items-center gap-3 flex-1">
+                                <i class="fas fa-layer-group text-slate-500"></i>
+                                <input type="text" value="${groupName}" 
+                                    onchange="Actions.renameGroup('${groupName}', this.value)"
+                                    class="bg-transparent border-b border-transparent hover:border-slate-600 focus:border-sky-500 focus:outline-none text-lg font-bold text-slate-100 transition-colors w-full max-w-xs">
+                            </div>
+                            <button onclick="Actions.deleteGroup('${groupName}')" class="text-xs text-slate-500 hover:text-rose-400 px-3 py-1 rounded border border-slate-700 hover:border-rose-400/50 transition-all opacity-0 group-hover/card:opacity-100">É¾³ý·Ö×é</button>
+                        </div>
+                        <div>${linksHtml}</div>
+                        <button onclick="Actions.addLink('${groupName}')" class="mt-2 text-xs font-bold text-sky-500 hover:text-sky-400 flex items-center py-2 px-1 opacity-80 hover:opacity-100 transition-opacity">
+                            <i class="fas fa-plus-circle mr-2"></i> Ìí¼ÓÁ´½Ó
+                        </button>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+
+            toast(msg, type = 'info') {
+                const el = document.getElementById('saveStatus');
+                el.innerText = msg;
+                el.classList.remove('opacity-0', 'text-slate-500', 'text-emerald-400', 'text-rose-400');
+                
+                if (type === 'success') el.classList.add('text-emerald-400');
+                else if (type === 'error') el.classList.add('text-rose-400');
+                else el.classList.add('text-sky-400');
+                
+                el.classList.add('opacity-100');
+                if (type !== 'loading') {
+                    setTimeout(() => el.classList.add('opacity-0'), 3000);
+                }
             }
-        })();
+        };
+
+        // Æô¶¯
+        Auth.init();
     </script>
 </body>
 </html>
