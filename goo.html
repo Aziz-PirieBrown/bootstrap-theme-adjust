@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Fast Redirect</title>
+    <script>
+        (async function() {
+            const id = new URLSearchParams(window.location.search).get('id');
+            if (!id) { window.location.replace("./index.html"); return; }
+            try {
+                // 加载本地静态配置
+                const res = await fetch('./config.json');
+                if (!res.ok) throw new Error('Config not found');
+                const config = await res.json();
+                if (config[id]) {
+                    window.location.replace(config[id]);
+                } else {
+                    document.body.innerHTML = "ID: " + id + " 未在 config.json 中定义";
+                }
+            } catch (e) {
+                document.body.innerHTML = "配置加载失败，请确认 config.json 是否存在。";
+            }
+        })();
+    </script>
+</head>
+<body style="background:#0f172a; color:#94a3b8; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+    <div style="text-align: center;">
+        <div style="border: 2px solid #38bdf8; border-top: 2px solid transparent; border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; margin: 0 auto 10px;"></div>
+        <span>极速跳转中...</span>
+    </div>
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+</body>
+</html>
