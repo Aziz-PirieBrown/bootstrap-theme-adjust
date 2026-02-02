@@ -2,393 +2,311 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Nexus Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); }
-        /* Òþ²Ø¹ö¶¯Ìõµ«±£Áô¹¦ÄÜ */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <div id="loginLayer" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-4">
-        <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl">
-            <div class="text-center mb-8">
-                <div class="inline-block p-3 rounded-full bg-slate-700 mb-4">
-                    <i class="fas fa-terminal text-2xl text-sky-400"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-white">Nexus ¿ØÖÆÌ¨</h1>
-                <p class="text-slate-400 text-sm mt-2">Serverless Configuration Manager</p>
+    <div id="loader" class="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]">
+        <div class="text-center">
+            <div class="inline-block w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full spin mb-4"></div>
+            <p id="statusText" class="text-slate-400 text-sm">ÕýÔÚ¼ì²é±¾µØÆ¾Ö¤...</p>
+        </div>
+    </div>
+
+    <div id="loginLayer" class="fixed inset-0 z-40 flex items-center justify-center bg-[#0f172a]/95 backdrop-blur hidden">
+        <div class="w-full max-w-md p-8 bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl">
+            <div class="text-center mb-6">
+                <i class="fab fa-github text-4xl text-white mb-3"></i>
+                <h2 class="text-xl font-bold text-white">Nexus Á¬½ÓÑéÖ¤</h2>
+                <p class="text-xs text-slate-400 mt-2">Token ½«½ö´æ´¢ÔÚÄúä¯ÀÀÆ÷µÄ LocalStorage ÖÐ</p>
             </div>
             
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">GitHub Personal Access Token</label>
-                    <input type="password" id="tokenInput" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-sky-500 transition-all" placeholder="ghp_xxxxxxxxxxxx">
+                    <input type="password" id="tokenInput" placeholder="Õ³Ìù ghp_... (Ô´Âë²»ÏÔÊ¾)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-sky-500 transition-colors">
                 </div>
-                <button onclick="Auth.login()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-lg transition-colors shadow-lg shadow-sky-900/50">
-                    <i class="fas fa-key mr-2"></i> ÑéÖ¤²¢½øÈë
+                <button onclick="saveTokenAndLogin()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-lg transition-colors shadow-lg shadow-sky-900/20">
+                    ÑéÖ¤²¢±£´æ
                 </button>
-                <p class="text-xs text-center text-slate-600 mt-4">Token ½ö±£´æÔÚ±¾µØ LocalStorage£¬Ðè¾ß±¸ Repo ¶ÁÐ´È¨ÏÞ¡£</p>
             </div>
         </div>
     </div>
 
-    <div id="appLayer" class="flex-1 flex hidden relative">
-        
-        <aside class="w-72 bg-slate-800 border-r border-slate-700 flex flex-col z-20">
-            <div class="h-16 flex items-center justify-between px-6 border-b border-slate-700 bg-slate-800">
-                <span class="font-bold text-sky-400 tracking-wide">USERS</span>
-                <button onclick="Auth.logout()" class="text-slate-500 hover:text-rose-500 transition-colors" title="ÍË³ö"><i class="fas fa-power-off"></i></button>
-            </div>
-            
-            <div id="userList" class="flex-1 overflow-y-auto p-3 space-y-1 no-scrollbar">
-                </div>
-
-            <div class="p-4 border-t border-slate-700 bg-slate-800">
-                <button onclick="Actions.createUser()" class="w-full py-2 border border-dashed border-slate-600 text-slate-400 hover:text-sky-400 hover:border-sky-400 rounded transition-all text-sm">
-                    <i class="fas fa-plus mr-1"></i> ÐÂ½¨ ID (User)
+    <div id="app" class="flex-1 flex hidden">
+        <div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                <span class="font-bold text-sky-400">Nexus ÓÃ»§</span>
+                <button onclick="logout()" class="text-xs text-slate-500 hover:text-rose-400" title="Çå³ý±¾µØTokenÍË³ö">
+                    <i class="fas fa-sign-out-alt mr-1"></i>ÍË³ö
                 </button>
             </div>
-        </aside>
-
-        <main class="flex-1 flex flex-col min-w-0 bg-[#0f172a] relative">
-            <header class="h-16 border-b border-slate-700 flex items-center justify-between px-8 bg-slate-800/50 backdrop-blur-md sticky top-0 z-10">
-                <div class="flex items-center gap-4">
-                    <h2 id="currentUserId" class="text-xl font-bold text-white">...</h2>
-                    <span id="saveStatus" class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-500 transition-all opacity-0">ÒÑ±£´æ</span>
-                </div>
-                <div class="flex gap-3">
-                    <button onclick="Data.fetch()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm font-medium transition-colors">
-                        <i class="fas fa-sync-alt mr-2"></i>ÖØÖÃ
-                    </button>
-                    <button onclick="Data.save()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all hover:scale-105">
-                        <i class="fas fa-save mr-2"></i>±£´æ¸ü¸Ä
-                    </button>
-                </div>
-            </header>
-
-            <div id="editorContainer" class="flex-1 overflow-y-auto p-8 scroll-smooth">
-                <div id="groupsWrapper" class="max-w-4xl mx-auto space-y-6 pb-20">
-                    </div>
-                
-                <div id="emptyState" class="hidden h-full flex flex-col items-center justify-center text-slate-600 opacity-60">
-                    <i class="fas fa-cube text-6xl mb-4"></i>
-                    <p>ÇëÔÚ×ó²àÑ¡ÔñÒ»¸ö ID ½øÐÐ±à¼­</p>
-                </div>
-
-                <div id="addGroupBtnWrapper" class="max-w-4xl mx-auto hidden">
-                    <button onclick="Actions.addGroup()" class="group flex items-center text-slate-500 hover:text-sky-400 transition-colors py-4">
-                        <span class="w-8 h-8 rounded-full border border-slate-600 group-hover:border-sky-400 flex items-center justify-center mr-3">
-                            <i class="fas fa-plus"></i>
-                        </span>
-                        <span class="font-medium">Ìí¼ÓÐÂ·Ö×é (Group)</span>
-                    </button>
-                </div>
+            <div id="userList" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+            <div class="p-3 border-t border-slate-700">
+                <button onclick="createUser()" class="w-full py-2 border border-dashed border-slate-600 text-slate-400 hover:text-sky-400 rounded text-sm transition-colors">+ ÐÂ½¨ÓÃ»§ ID</button>
             </div>
-        </main>
+        </div>
+
+        <div class="flex-1 flex flex-col h-full bg-[#0f172a]">
+            <div class="h-14 border-b border-slate-700 flex items-center justify-between px-6 bg-slate-800/50 backdrop-blur-sm z-10">
+                <span id="currentIdDisplay" class="font-bold text-white">ÇëÑ¡Ôñ×ó²àÓÃ»§</span>
+                <button onclick="saveConfig()" id="saveBtn" class="px-5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all hover:scale-105">
+                    ±£´æ¸ü¸Ä
+                </button>
+            </div>
+            <div id="editorArea" class="flex-1 overflow-y-auto p-8 pb-20"></div>
+        </div>
     </div>
 
     <script>
-        /**
-         * ºËÐÄÅäÖÃÇø
-         * ÕâÐ©Õ¼Î»·û»á±»ÄãµÄ YML ×Ô¶¯Ìæ»»
-         */
-        const CONFIG = {
-            owner: "__REPO_OWNER__",
-            repo: "__REPO_NAME__",
-            path: "config.json"
-        };
+        // === ÅäÖÃÇø (YML»á×Ô¶¯Ìæ»») ===
+        const OWNER = "__REPO_OWNER__";
+        const REPO = "__REPO_NAME__";
+        const PATH = "config.json";
+        
+        // === È«¾Ö±äÁ¿ ===
+        let configData = {};
+        let currentSha = "";
+        let activeId = null;
+        // ¹Ø¼ü£º´Ó±¾µØ»º´æ¶ÁÈ¡ Token
+        let myToken = localStorage.getItem('nexus_gh_token');
 
-        // È«¾Ö×´Ì¬
-        let store = {
-            data: {},       // ÍêÕûµÄ JSON Êý¾Ý
-            sha: null,      // GitHub ÎÄ¼þ SHA (ÓÃÓÚ°æ±¾¿ØÖÆ)
-            activeId: null, // µ±Ç°Ñ¡ÖÐµÄ User ID
-            token: localStorage.getItem('nexus_pat')
-        };
+        // === 1. ³õÊ¼»¯³ÌÐò ===
+        (async function init() {
+            const loader = document.getElementById('loader');
+            const loginLayer = document.getElementById('loginLayer');
+            const status = document.getElementById('statusText');
 
-        // ----------------------------------------------------
-        // 1. ÈÏÖ¤Ä£¿é
-        // ----------------------------------------------------
-        const Auth = {
-            init() {
-                if (store.token) {
-                    document.getElementById('loginLayer').classList.add('hidden');
-                    document.getElementById('appLayer').classList.remove('hidden');
-                    Data.fetch();
+            // Èç¹û±¾µØÃ»ÓÐ Token£¬ÏÔÊ¾µÇÂ¼¿ò
+            if (!myToken) {
+                loader.classList.add('hidden');
+                loginLayer.classList.remove('hidden');
+                return;
+            }
+
+            // Èç¹ûÓÐ Token£¬³¢ÊÔÀ­È¡Êý¾Ý
+            try {
+                status.innerText = "ÕýÔÚ´Ó GitHub Í¬²½...";
+                await fetchData(); // À­È¡Êý¾Ý
+                
+                // ³É¹¦ºóÏÔÊ¾Ö÷½çÃæ
+                loader.classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                renderSidebar();
+
+                // URL ×Ô¶¯Ñ¡ÖÐÂß¼­
+                const urlId = new URLSearchParams(window.location.search).get('id');
+                if(urlId && configData[urlId]) selectUser(urlId);
+
+            } catch (e) {
+                // Èç¹û Token Ê§Ð§»òÍøÂç´íÎó
+                console.error(e);
+                if(e.message.includes('401') || e.message.includes('Bad credentials')) {
+                    alert("±¾µØ±£´æµÄ Token ËÆºõÒÑÊ§Ð§£¬ÇëÖØÐÂÊäÈë¡£");
+                    logout(); // Çå³ý¾É Token ²¢Ë¢ÐÂ
+                } else {
+                    status.innerText = "Á¬½Ó´íÎó: " + e.message;
+                    status.classList.add('text-rose-500');
                 }
-            },
-            login() {
-                const val = document.getElementById('tokenInput').value.trim();
-                if (!val.startsWith('gh')) return alert('Token ¸ñÊ½¿´ÆðÀ´²»¶Ô (Ó¦ÒÔ gh ¿ªÍ·)');
-                localStorage.setItem('nexus_pat', val);
-                store.token = val;
+            }
+        })();
+
+        // === 2. ºËÐÄ API ²Ù×÷ ===
+
+        // ÑéÖ¤²¢±£´æ Token (µÚÒ»´ÎÓÃÊ±´¥·¢)
+        async function saveTokenAndLogin() {
+            const input = document.getElementById('tokenInput');
+            const val = input.value.trim();
+            if (!val.startsWith('gh')) return alert("Token ¸ñÊ½¿´ÆðÀ´²»¶Ô (Í¨³£ÒÔ ghp_ ¿ªÍ·)");
+            
+            // ´æÈë±¾µØ
+            localStorage.setItem('nexus_gh_token', val);
+            myToken = val;
+            
+            // Ë¢ÐÂÒ³Ãæ´¥·¢ init()
+            location.reload();
+        }
+
+        // ÍË³ö (Çå³ý±¾µØ Token)
+        function logout() {
+            if(confirm("È·¶¨ÍË³öÂð£¿Õâ½«Çå³ý±¾µØ±£´æµÄ Token¡£")) {
+                localStorage.removeItem('nexus_gh_token');
                 location.reload();
-            },
-            logout() {
-                if(confirm('È·¶¨ÍË³öÂð£¿Token ½«±»Çå³ý¡£')) {
-                    localStorage.removeItem('nexus_pat');
-                    location.reload();
-                }
             }
-        };
+        }
 
-        // ----------------------------------------------------
-        // 2. Êý¾Ý²ã (GitHub API)
-        // ----------------------------------------------------
-        const Data = {
-            async fetch() {
-                UI.toast('ÕýÔÚÀ­È¡ÅäÖÃ...', 'loading');
-                try {
-                    const url = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}?t=${Date.now()}`;
-                    const res = await fetch(url, { headers: { 'Authorization': `token ${store.token}` } });
-                    
-                    if (res.status === 404) {
-                        store.data = {}; // ÐÂ²Ö¿âÄ¬ÈÏ¿Õ¶ÔÏó
-                        store.sha = null;
-                        UI.initSidebar();
-                        return;
-                    }
-                    
-                    if (!res.ok) throw new Error(`API Error ${res.status}`);
-                    
-                    const json = await res.json();
-                    store.sha = json.sha;
-                    // UTF-8 ½âÂë
-                    const content = decodeURIComponent(escape(window.atob(json.content)));
-                    store.data = JSON.parse(content);
-                    
-                    UI.toast('¼ÓÔØ³É¹¦', 'success');
-                    UI.initSidebar();
-                    
-                    // Èç¹ûÖ®Ç°Ñ¡ÖÐÁËÈË£¬Ë¢ÐÂºó±£³ÖÑ¡ÖÐ
-                    if(store.activeId && store.data[store.activeId]) {
-                        UI.renderEditor(store.activeId);
-                    } else {
-                        store.activeId = null;
-                        UI.toggleEmptyState(true);
-                    }
+        // À­È¡Êý¾Ý
+        async function fetchData() {
+            const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}?t=${Date.now()}`;
+            const res = await fetch(url, { headers: { 'Authorization': `token ${myToken}` } });
 
-                } catch (e) {
-                    console.error(e);
-                    UI.toast('¼ÓÔØÊ§°Ü: ' + e.message, 'error');
-                    if(e.message.includes('401')) Auth.logout(); // Token Ê§Ð§
-                }
-            },
-
-            async save() {
-                if (!confirm('È·¶¨Òª½«¸ü¸ÄÍÆËÍµ½ GitHub Âð£¿Õâ»á¼´Ê±ÉúÐ§¡£')) return;
-                UI.toast('ÕýÔÚÍÆËÍ...', 'loading');
-
-                try {
-                    // ¸ñÊ½»¯²¢ UTF-8 ±àÂë
-                    const jsonStr = JSON.stringify(store.data, null, 2);
-                    const b64Content = window.btoa(unescape(encodeURIComponent(jsonStr)));
-                    
-                    const body = {
-                        message: `Nexus Update: ${new Date().toLocaleString()}`,
-                        content: b64Content,
-                        sha: store.sha
-                    };
-
-                    const res = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `token ${store.token}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(body)
-                    });
-
-                    if (!res.ok) throw new Error('Write Failed');
-                    
-                    const result = await res.json();
-                    store.sha = result.content.sha; // ¸üÐÂ SHA ·ÀÖ¹³åÍ»
-                    UI.toast('±£´æ³É¹¦£¡', 'success');
-
-                } catch (e) {
-                    console.error(e);
-                    UI.toast('±£´æÊ§°Ü£¬Çë¼ì²é¿ØÖÆÌ¨', 'error');
-                }
+            if (res.status === 404) {
+                configData = {}; // ÐÂÎÄ¼þ
+                return;
             }
-        };
+            if (!res.ok) throw new Error(`API Error ${res.status}`);
 
-        // ----------------------------------------------------
-        // 3. Âß¼­²Ù×÷²ã
-        // ----------------------------------------------------
-        const Actions = {
-            createUser() {
-                const id = prompt("ÇëÊäÈëÐÂ ID (×ÖÄ¸/Êý×Ö):");
-                if (!id) return;
-                if (store.data[id]) return alert("ID ÒÑ´æÔÚ");
-                
-                // Ä¬ÈÏÄ£°å
-                store.data[id] = { "³£ÓÃ": { "Google": "https://google.com" } };
-                UI.initSidebar();
-                UI.selectUser(id);
-            },
-            deleteUser(id, e) {
-                e.stopPropagation(); // ·ÀÖ¹´¥·¢ select
-                if (!confirm(`¾¯¸æ£ºÈ·¶¨³¹µ×É¾³ýÓÃ»§ [${id}] Âð£¿`)) return;
-                delete store.data[id];
-                if (store.activeId === id) {
-                    store.activeId = null;
-                    UI.toggleEmptyState(true);
-                }
-                UI.initSidebar();
-            },
-            addGroup() {
-                const name = prompt("·Ö×éÃû³Æ (Èç: ¹¤×÷, ÓéÀÖ):");
-                if (!name) return;
-                if (store.data[store.activeId][name]) return alert("·Ö×éÒÑ´æÔÚ");
-                
-                store.data[store.activeId][name] = {};
-                UI.renderEditor(store.activeId);
-            },
-            renameGroup(oldName, newName) {
-                if (!newName || oldName === newName) return;
-                const userData = store.data[store.activeId];
-                // ±£³ÖË³ÐòÓÐÐ©Âé·³£¬ÕâÀï¼ò»¯ÎªÖØÐÂ¸³Öµ£¬Ë³Ðò¿ÉÄÜ»á±äµ½×îºó
-                const content = userData[oldName];
-                delete userData[oldName];
-                userData[newName] = content;
-                UI.renderEditor(store.activeId);
-            },
-            deleteGroup(groupName) {
-                if (!confirm("É¾³ý´Ë·Ö×é¼°ÆäËùÓÐÁ´½Ó£¿")) return;
-                delete store.data[store.activeId][groupName];
-                UI.renderEditor(store.activeId);
-            },
-            addLink(groupName) {
-                const name = "Link " + Math.floor(Math.random()*1000);
-                store.data[store.activeId][groupName][name] = "";
-                UI.renderEditor(store.activeId);
-            },
-            updateLinkKey(groupName, oldKey, newKey) {
-                if (!newKey || oldKey === newKey) return;
-                const group = store.data[store.activeId][groupName];
-                const url = group[oldKey];
-                delete group[oldKey];
-                group[newKey] = url;
-                // ²»Ë¢ÐÂ UI ÒÔ±£³Ö½¹µã
-            },
-            updateLinkVal(groupName, key, newVal) {
-                store.data[store.activeId][groupName][key] = newVal;
-            },
-            deleteLink(groupName, key) {
-                delete store.data[store.activeId][groupName][key];
-                UI.renderEditor(store.activeId);
-            }
-        };
+            const json = await res.json();
+            currentSha = json.sha;
+            // UTF8 ½âÂë
+            configData = JSON.parse(decodeURIComponent(escape(atob(json.content))));
+        }
 
-        // ----------------------------------------------------
-        // 4. UI äÖÈ¾²ã
-        // ----------------------------------------------------
-        const UI = {
-            toggleEmptyState(isEmpty) {
-                document.getElementById('emptyState').classList.toggle('hidden', !isEmpty);
-                document.getElementById('groupsWrapper').innerHTML = '';
-                document.getElementById('addGroupBtnWrapper').classList.toggle('hidden', isEmpty);
-                document.getElementById('currentUserId').innerText = isEmpty ? '...' : store.activeId;
-            },
+        // ±£´æÊý¾Ý
+        async function saveConfig() {
+            const btn = document.getElementById('saveBtn');
+            const originalText = btn.innerText;
+            btn.innerText = "ÕýÔÚÍÆËÍ...";
+            btn.disabled = true;
+            btn.classList.add('opacity-75');
 
-            initSidebar() {
-                const list = document.getElementById('userList');
-                list.innerHTML = '';
-                Object.keys(store.data).forEach(id => {
-                    const el = document.createElement('div');
-                    const isActive = id === store.activeId;
-                    el.className = `group flex justify-between items-center px-4 py-3 rounded-lg cursor-pointer transition-all mb-1 ${isActive ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/50' : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'}`;
-                    el.onclick = () => UI.selectUser(id);
-                    el.innerHTML = `
-                        <span class="font-medium truncate">${id}</span>
-                        <button onclick="Actions.deleteUser('${id}', event)" class="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-300 transition-opacity"><i class="fas fa-trash-alt"></i></button>
-                    `;
-                    list.appendChild(el);
+            try {
+                // ±àÂë
+                const contentStr = JSON.stringify(configData, null, 2);
+                const contentB64 = btoa(unescape(encodeURIComponent(contentStr)));
+
+                const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': `token ${myToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: "Update config via Nexus Admin",
+                        content: contentB64,
+                        sha: currentSha
+                    })
                 });
-            },
 
-            selectUser(id) {
-                store.activeId = id;
-                UI.initSidebar(); // Ë¢ÐÂ¸ßÁÁ
-                UI.toggleEmptyState(false);
-                UI.renderEditor(id);
-            },
+                if(!res.ok) throw new Error("±£´æÊ§°Ü");
+                const data = await res.json();
+                currentSha = data.content.sha; // ¸üÐÂ SHA ±ÜÃâ³åÍ»
 
-            renderEditor(id) {
-                const container = document.getElementById('groupsWrapper');
-                container.innerHTML = '';
-                const userData = store.data[id];
+                btn.innerText = "±£´æ³É¹¦!";
+                btn.classList.replace('bg-emerald-600', 'bg-sky-600');
+                setTimeout(() => { 
+                    btn.innerText = originalText; 
+                    btn.classList.replace('bg-sky-600', 'bg-emerald-600');
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-75');
+                }, 2000);
 
-                Object.entries(userData).forEach(([groupName, links]) => {
-                    const card = document.createElement('div');
-                    card.className = "bg-slate-800 border border-slate-700 rounded-xl p-6 relative group/card hover:border-slate-600 transition-all";
-                    
-                    // ¹¹½¨Á´½ÓÁÐ±í
-                    let linksHtml = '';
-                    Object.entries(links).forEach(([linkName, url]) => {
-                        linksHtml += `
-                            <div class="flex gap-3 mb-3 items-center">
-                                <div class="w-1/3 relative">
-                                    <input type="text" value="${linkName}" 
-                                        onchange="Actions.updateLinkKey('${groupName}', '${linkName}', this.value)"
-                                        class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all placeholder-slate-600" 
-                                        placeholder="Ãû³Æ">
-                                </div>
-                                <div class="flex-1 relative">
-                                    <input type="text" value="${url}" 
-                                        onchange="Actions.updateLinkVal('${groupName}', '${linkName}', this.value)"
-                                        class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-sky-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all placeholder-slate-600 font-mono" 
-                                        placeholder="https://...">
-                                </div>
-                                <button onclick="Actions.deleteLink('${groupName}', '${linkName}')" class="text-slate-600 hover:text-rose-500 w-8 h-8 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"><i class="fas fa-times"></i></button>
-                            </div>
-                        `;
-                    });
+            } catch (e) {
+                alert("±£´æÊ§°Ü: " + e.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-75');
+            }
+        }
 
-                    card.innerHTML = `
-                        <div class="flex justify-between items-center mb-5 pb-2 border-b border-slate-700/50">
-                            <div class="flex items-center gap-3 flex-1">
-                                <i class="fas fa-layer-group text-slate-500"></i>
-                                <input type="text" value="${groupName}" 
-                                    onchange="Actions.renameGroup('${groupName}', this.value)"
-                                    class="bg-transparent border-b border-transparent hover:border-slate-600 focus:border-sky-500 focus:outline-none text-lg font-bold text-slate-100 transition-colors w-full max-w-xs">
-                            </div>
-                            <button onclick="Actions.deleteGroup('${groupName}')" class="text-xs text-slate-500 hover:text-rose-400 px-3 py-1 rounded border border-slate-700 hover:border-rose-400/50 transition-all opacity-0 group-hover/card:opacity-100">É¾³ý·Ö×é</button>
+        // === 3. UI äÖÈ¾Âß¼­ (±£³ÖÔ­Ñù) ===
+
+        function renderSidebar() {
+            const list = document.getElementById('userList');
+            list.innerHTML = '';
+            Object.keys(configData).forEach(id => {
+                const div = document.createElement('div');
+                div.className = `px-3 py-2 cursor-pointer rounded flex justify-between group transition-colors ${id === activeId ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`;
+                div.onclick = () => selectUser(id);
+                div.innerHTML = `<span class="truncate font-medium">${id}</span> <button onclick="deleteUser('${id}', event)" class="opacity-0 group-hover:opacity-100 hover:text-rose-300 transition-all px-2"><i class="fas fa-trash-alt text-xs"></i></button>`;
+                list.appendChild(div);
+            });
+        }
+
+        function selectUser(id) {
+            activeId = id;
+            document.getElementById('currentIdDisplay').innerText = id;
+            renderSidebar();
+            renderEditor();
+        }
+
+        function renderEditor() {
+            const container = document.getElementById('editorArea');
+            container.innerHTML = '';
+            if(!activeId) return;
+
+            const userData = configData[activeId];
+            
+            for(const group in userData) {
+                const groupEl = document.createElement('div');
+                groupEl.className = "mb-6 bg-slate-800 p-5 rounded-xl border border-slate-700/50 shadow-sm relative group/card";
+                
+                let linksHtml = '';
+                for(const linkName in userData[group]) {
+                    linksHtml += `
+                        <div class="flex gap-3 mb-3 items-center">
+                            <input class="bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded px-3 py-2 w-1/3 focus:border-sky-500 focus:outline-none transition-colors" value="${linkName}" onchange="updateKey('${group}', '${linkName}', this.value)" placeholder="Ãû³Æ">
+                            <input class="bg-slate-900 border border-slate-700 text-sky-400 text-sm rounded px-3 py-2 flex-1 focus:border-sky-500 focus:outline-none transition-colors font-mono" value="${userData[group][linkName]}" onchange="updateVal('${group}', '${linkName}', this.value)" placeholder="https://...">
+                            <button onclick="delLink('${group}', '${linkName}')" class="text-slate-500 hover:text-rose-500 w-8 h-8 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"><i class="fas fa-times"></i></button>
                         </div>
-                        <div>${linksHtml}</div>
-                        <button onclick="Actions.addLink('${groupName}')" class="mt-2 text-xs font-bold text-sky-500 hover:text-sky-400 flex items-center py-2 px-1 opacity-80 hover:opacity-100 transition-opacity">
-                            <i class="fas fa-plus-circle mr-2"></i> Ìí¼ÓÁ´½Ó
-                        </button>
                     `;
-                    container.appendChild(card);
-                });
-            },
-
-            toast(msg, type = 'info') {
-                const el = document.getElementById('saveStatus');
-                el.innerText = msg;
-                el.classList.remove('opacity-0', 'text-slate-500', 'text-emerald-400', 'text-rose-400');
-                
-                if (type === 'success') el.classList.add('text-emerald-400');
-                else if (type === 'error') el.classList.add('text-rose-400');
-                else el.classList.add('text-sky-400');
-                
-                el.classList.add('opacity-100');
-                if (type !== 'loading') {
-                    setTimeout(() => el.classList.add('opacity-0'), 3000);
                 }
-            }
-        };
 
-        // Æô¶¯
-        Auth.init();
+                groupEl.innerHTML = `
+                    <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-700/50">
+                        <input class="bg-transparent font-bold text-lg text-slate-100 border-b border-transparent hover:border-slate-600 focus:border-sky-500 focus:outline-none transition-colors w-48" value="${group}" onchange="renameGroup('${group}', this.value)">
+                        <button onclick="delGroup('${group}')" class="text-xs text-slate-500 hover:text-rose-400 border border-slate-700 px-2 py-1 rounded opacity-0 group-hover/card:opacity-100 transition-all">É¾³ý·Ö×é</button>
+                    </div>
+                    ${linksHtml}
+                    <button onclick="addLink('${group}')" class="text-xs font-bold text-sky-500 hover:text-sky-400 mt-2 flex items-center py-1 px-1 opacity-70 hover:opacity-100 transition-opacity"><i class="fas fa-plus-circle mr-1"></i>Ìí¼ÓÁ´½Ó</button>
+                `;
+                container.appendChild(groupEl);
+            }
+            
+            const addGroupBtn = document.createElement('button');
+            addGroupBtn.className = "w-full py-4 border border-dashed border-slate-700 text-slate-500 hover:text-sky-400 rounded-xl hover:border-sky-500 hover:bg-slate-800/50 transition-all flex items-center justify-center gap-2";
+            addGroupBtn.innerHTML = "<i class='fas fa-folder-plus'></i> <span>Ìí¼ÓÐÂ·Ö×é</span>";
+            addGroupBtn.onclick = () => {
+                const name = prompt("ÐÂ·Ö×éÃû³Æ:");
+                if(name && !configData[activeId][name]) {
+                    configData[activeId][name] = {};
+                    renderEditor();
+                }
+            };
+            container.appendChild(addGroupBtn);
+        }
+
+        // === 4. Êý¾Ý²Ù×÷ (¸¨Öúº¯Êý) ===
+        function updateVal(g, k, v) { configData[activeId][g][k] = v; }
+        function updateKey(g, oldK, newK) {
+            if(!newK || oldK === newK) return;
+            const v = configData[activeId][g][oldK];
+            delete configData[activeId][g][oldK];
+            configData[activeId][g][newK] = v;
+        }
+        function addLink(g) { configData[activeId][g]["New Link"] = ""; renderEditor(); }
+        function delLink(g, k) { delete configData[activeId][g][k]; renderEditor(); }
+        function renameGroup(oldN, newN) {
+            if(!newN || oldN === newN) return;
+            const d = configData[activeId][oldN];
+            delete configData[activeId][oldN];
+            configData[activeId][newN] = d;
+            renderEditor();
+        }
+        function delGroup(g) { if(confirm("É¾³ý·Ö×é?")) { delete configData[activeId][g]; renderEditor(); } }
+        function createUser() {
+            const id = prompt("ÐÂ ID (×ÖÄ¸/Êý×Ö):");
+            if(id && !configData[id]) { configData[id] = {"Ä¬ÈÏ·Ö×é":{}}; selectUser(id); }
+        }
+        function deleteUser(id, e) {
+            e.stopPropagation();
+            if(confirm("É¾³ýÓÃ»§ " + id + "?")) {
+                delete configData[id];
+                if(activeId === id) { activeId = null; document.getElementById('editorArea').innerHTML = ''; }
+                renderSidebar();
+            }
+        }
     </script>
 </body>
 </html>
