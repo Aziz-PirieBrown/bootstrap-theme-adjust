@@ -8,20 +8,22 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
-  # ✨ 新增：每 10 分钟自动运行一次，解决冷启动延迟  chec
+  # ✨ 每 10 分钟自动运行一次，防止后端 Function 冷启动延迟
   schedule:
     - cron: '*/10 * * * *'
 
 jobs:
-  # ✨ 新增任务 1：冷启动保活任务
+  # 任务 1：冷启动保活任务
   keep_alive:
     runs-on: ubuntu-latest
     steps:
       - name: Heartbeat to Azure Function
         run: |
-          curl -s "https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/api/nexus-handler?code=${{ secrets.AZURE_FUNCTION_KEY }}&action=get" > /dev/null
+          # 这里的 URL 必须是你后端的真实地址
+          curl -s "https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/api/go?code=${{ secrets.AZURE_FUNCTION_KEY }}&action=get" > /dev/null
           echo "Heartbeat sent at $(date)"
 
+  # 任务 2：构建与部署
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
@@ -35,14 +37,20 @@ jobs:
           submodules: true
           lfs: false
 
-      # ✨ 新增任务 2：在部署前将 HTML 里的占位符替换为真实的 Key
-      # 这样公开仓库源码里只有 __AZURE_KEY__，保证安全
-      - name: Inject Secret Key into HTML
+      # ✨ 核心修正：同时处理 index.html 和 go.html 的 Key 注入
+      - name: Inject Secret Key into HTML Files
         run: |
-          sed -i "s/__AZURE_KEY__/${{ secrets.AZURE_FUNCTION_KEY }}/g" index.html
+          if [ -f "index.html" ]; then
+            sed -i "s/__AZURE_KEY__/${{ secrets.AZURE_FUNCTION_KEY }}/g" index.html
+          fi
+          if [ -f "go.html" ]; then
+            sed -i "s/__AZURE_KEY__/${{ secrets.AZURE_FUNCTION_KEY }}/g" go.html
+          fi
+          echo "Secret Key successfully injected into all HTML files."
 
-      - name: Install OIDC Client from Core Package
+      - name: Install OIDC Client
         run: npm install @actions/core@1.6.0 @actions/http-client
+        
       - name: Get Id Token
         uses: actions/github-script@v6
         id: idtoken
@@ -51,6 +59,7 @@ jobs:
                const coredemo = require('@actions/core')
                return await coredemo.getIDToken()
            result-encoding: string
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -63,6 +72,7 @@ jobs:
           skip_app_build: true      
           github_id_token: ${{ steps.idtoken.outputs.result }}
 
+  # 任务 3：关闭 PR 时清理环境
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
@@ -74,4 +84,3 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_SEA_0466B3200 }}
           action: "close"
-
