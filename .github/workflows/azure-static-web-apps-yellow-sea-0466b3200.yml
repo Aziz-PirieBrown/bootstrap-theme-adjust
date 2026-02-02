@@ -8,12 +8,12 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
-  # ✨ 保留：原有的保活任务
+  # ±£³Ö±£»îÈÎÎñ£¬·ÀÖ¹ Function ½øÈëÉî¶ÈÐÝÃß
   schedule:
     - cron: '*/10 * * * *'
 
 jobs:
-  # 任务 1：保活任务 (心跳检测)
+  # ÈÎÎñ 1£º±£»îÈÎÎñ
   keep_alive:
     runs-on: ubuntu-latest
     steps:
@@ -22,7 +22,7 @@ jobs:
           curl -s "https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/go?code=${{ secrets.AZURE_FUNCTION_KEY }}&action=get" > /dev/null
           echo "Heartbeat sent at $(date)"
 
-  # 任务 2：构建与部署
+  # ÈÎÎñ 2£º¹¹½¨Óë²¿Êð
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
@@ -36,20 +36,23 @@ jobs:
           submodules: true
           lfs: false
 
-      # ✨ 避坑核心：注入 Secret Key、用户名、仓库名
+      # ? ºËÐÄÐÞ¸´£ºÈ·±£ goo.html ºÍ manage.html Í¬Ê±»ñµÃÂ·¾¶×¢Èë
       - name: Inject Info into HTML Files
         run: |
-          # 1. 注入 Azure Function Key (旧方案)
+          # 1. ×¢ÈëÔ­ÓÐ index ºÍ go µÄ Key
           [ -f "index.html" ] && sed -i "s/__AZURE_KEY__/${{ secrets.AZURE_FUNCTION_KEY }}/g" index.html
           [ -f "go.html" ] && sed -i "s/__AZURE_KEY__/${{ secrets.AZURE_FUNCTION_KEY }}/g" go.html
           
-          # 2. 注入仓库信息 (新方案 manage.html)
-          # 使用 github.repository_owner 和 github.event.repository.name 自动获取
-          if [ -f "manage.html" ]; then
-            sed -i "s/__REPO_OWNER__/${{ github.repository_owner }}/g" manage.html
-            sed -i "s/__REPO_NAME__/${{ github.event.repository.name }}/g" manage.html
-          fi
-          echo "All injections complete."
+          # 2. ±éÀú´¦ÀíÐèÒª API Ö±Á¬µÄÒ³Ãæ
+          # È·±£ËùÓÐÕ¼Î»·û __REPO_OWNER__ ºÍ __REPO_NAME__ ±»Ìæ»»
+          for file in manage.html goo.html; do
+            if [ -f "$file" ]; then
+              echo "Injecting repo info into $file..."
+              sed -i "s/__REPO_OWNER__/${{ github.repository_owner }}/g" "$file"
+              sed -i "s/__REPO_NAME__/${{ github.event.repository.name }}/g" "$file"
+            fi
+          done
+          echo "Injection process finished."
 
       - name: Install OIDC Client
         run: npm install @actions/core@1.6.0 @actions/http-client
@@ -75,7 +78,7 @@ jobs:
           skip_app_build: true      
           github_id_token: ${{ steps.idtoken.outputs.result }}
 
-  # 任务 3：清理任务
+  # ÈÎÎñ 3£ºÇåÀíÈÎÎñ
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
