@@ -4,27 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus | GitHub Config Manager</title>
+    
+    <script>
+        (function() {
+            // 1. ÓÅÏÈ¼ì²âÊÇ·ñÎªÌø×ªÇëÇó
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            
+            // Èç¹û URL °üº¬ id£¬ËµÃ÷ÊÇÌø×ªÇëÇó£¬Á¢¼´Ö´ÐÐÌø×ªÂß¼­
+            if (id) {
+                // ?? ÇëÔÚ´Ë´¦ÌîÈëÄãµÄ Azure Function Key
+                const AZURE_KEY = "__AZURE_KEY__"; 
+                
+                // ¹¹Ôìºó¶ËµØÖ·
+                const backend = "https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net";
+                const target = `${backend}/go?code=${AZURE_KEY}&id=${id}`;
+
+                // Á¢¼´ÖØ¶¨Ïò£¬²»¼ÓÔØºóÐøµÄ Vue ½çÃæ
+                window.location.replace(target);
+                
+                // Í£Ö¹ºóÐø½Å±¾Ö´ÐÐ£¨ËäÈ» replace »áÌø×ª£¬µ«ÎªÁË±£ÏÕ£©
+                throw new Error("Redirecting to backend...");
+            }
+        })();
+    </script>
+    
     <style>
         [v-cloak] { display: none !important; }
         body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; margin: 0; }
-        .init-loading { color: #38bdf8; font-family: monospace; font-size: 12px; text-transform: uppercase; }
         html { scroll-behavior: smooth; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        
-        /* 强力去除 Edge 深色主题强制生成的白边 */
-        input { 
-            border: none !important; 
-            outline: none !important; 
-            box-shadow: none !important; 
-            appearance: none !important;
-            -webkit-appearance: none !important;
-            background-color: transparent;
-        }
-        
-        .skeleton { background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
-        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        input { border: none !important; outline: none !important; box-shadow: none !important; background-color: transparent; }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
@@ -36,11 +48,12 @@
     </script>
 </head>
 <body class="min-h-screen pb-20 relative text-slate-300">
+
     <div id="app" v-cloak class="max-w-6xl mx-auto p-4 md:p-8">
         <header class="bg-card border border-border rounded-xl p-6 mb-6 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
-                <h1 class="text-xl sm:text-2xl font-bold text-white uppercase tracking-tight">NEXUS <span class="text-primary">GITHUB</span></h1>
-                <p class="text-slate-500 text-[10px] font-mono mt-1 uppercase">Repo: __REPO_OWNER__ / __REPO_NAME__</p>
+                <h1 class="text-xl sm:text-2xl font-bold text-white uppercase tracking-tight">NEXUS <span class="text-primary">MANAGER</span></h1>
+                <p class="text-slate-500 text-[10px] font-mono mt-1 uppercase">Repo: {{ repoOwner }} / {{ repoName }}</p>
             </div>
             <div class="flex gap-3 w-full md:w-auto">
                 <input type="password" v-model="token" placeholder="GitHub PAT (Local Only)" 
@@ -48,7 +61,7 @@
                 <button @click="saveToGithub" :disabled="loading || !token" 
                         :class="saveStatus ? 'bg-green-600' : 'bg-sky-600 hover:bg-sky-500'"
                         class="px-6 py-2 text-white rounded-lg transition-all disabled:opacity-30 font-bold whitespace-nowrap">
-                    {{ loading ? 'SYNCING...' : (saveStatus ? 'SUCCESS ✅' : 'COMMIT') }}
+                    {{ loading ? 'SYNCING...' : (saveStatus ? 'SUCCESS ?' : 'COMMIT') }}
                 </button>
             </div>
         </header>
@@ -77,9 +90,10 @@
                             </button>
                         </div>
                         
-                        <div class="flex items-center justify-center gap-2 py-1">
-                            <a :href="getJumpUrl(userId)" target="_blank" class="text-xs font-mono text-blue-400 hover:text-blue-300 truncate transition-colors">🔗 ?id={{ userId }}</a>
-                            <button @click="copyEndpoint(userId)" class="p-1.5 text-slate-500 hover:text-primary transition-colors bg-slate-800/50 rounded ml-1">
+                        <div class="flex items-center justify-center gap-2 py-1 bg-slate-900/30 rounded border border-slate-800/50 p-2">
+                            <span class="text-[10px] text-slate-500 font-mono">ENTRY:</span>
+                            <a :href="getJumpUrl(userId)" target="_blank" class="text-xs font-mono text-blue-400 hover:text-blue-300 truncate transition-colors">{{ getJumpUrl(userId) }}</a>
+                            <button @click="copyEndpoint(userId)" class="p-1.5 text-slate-500 hover:text-primary transition-colors bg-slate-800 rounded ml-1">
                                 <svg class="w-4 h-4" :class="{'text-green-400': copyStatus[userId]}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path v-if="!copyStatus[userId]" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /><path v-else d="M5 13l4 4L19 7" />
                                 </svg>
@@ -98,8 +112,8 @@
                                             class="px-2 py-0.5 font-bold text-[9px] rounded border transition-all hover:bg-white/5 uppercase">
                                         {{ getGroupStatusLabel(links) }}
                                     </button>
-                                    <button @click="addLink(userId, groupName)" :disabled="Object.keys(links).length >= 10" class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all disabled:opacity-20">+🔗</button>
-                                    <button @click="deleteGroup(userId, groupName)" class="text-slate-600 hover:text-red-400 font-bold text-sm px-1">×</button>
+                                    <button @click="addLink(userId, groupName)" :disabled="Object.keys(links).length >= 10" class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all disabled:opacity-20">+??</button>
+                                    <button @click="deleteGroup(userId, groupName)" class="text-slate-600 hover:text-red-400 font-bold text-sm px-1">¡Á</button>
                                 </div>
                             </div>
 
@@ -112,19 +126,15 @@
                                             {{ url.startsWith('https') ? 'HTTPS' : 'HTTP' }}
                                         </button>
                                         <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" 
-                                               class="w-24 shrink-0 bg-slate-900 rounded px-2 py-1 text-xs text-slate-300 font-mono" style="min-width: 90px;">
+                                               class="w-24 shrink-0 bg-slate-900 rounded px-2 py-1 text-xs text-slate-300 font-mono border border-slate-800 focus:border-primary" style="min-width: 90px;">
+                                        
                                         <a :href="url" target="_blank" class="text-slate-500 hover:text-primary px-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="w-4 h-4"><line x1="2" y1="12" x2="22" y2="12"/><polyline points="15 5 22 12 15 19"/></svg></a>
-                                        <button @click="copyItem(url, userId, groupName, name)" class="p-1 text-slate-500 hover:text-primary transition-colors">
-                                            <svg class="w-4 h-4" :class="{'text-green-400': copyItemStatus[userId+groupName+name]}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path v-if="!copyItemStatus[userId+groupName+name]" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /><path v-else d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        </button>
                                         <div class="flex-1 sm:hidden"></div>
-                                        <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 font-bold text-sm px-1 sm:hidden">×</button>
+                                        <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 font-bold text-sm px-1 sm:hidden">¡Á</button>
                                     </div>
                                     <input type="text" :value="stripProtocol(url)" @input="updateUrl(userId, groupName, name, $event.target.value)" 
                                            class="w-full sm:flex-1 bg-slate-900 rounded px-2 py-1.5 sm:py-1 text-xs font-mono text-primary outline-none truncate">
-                                    <button @click="deleteLink(userId, groupName, name)" class="hidden sm:block text-slate-600 hover:text-red-400 font-bold text-sm px-1">×</button>
+                                    <button @click="deleteLink(userId, groupName, name)" class="hidden sm:block text-slate-600 hover:text-red-400 font-bold text-sm px-1">¡Á</button>
                                 </div>
                             </div>
                         </div>
@@ -137,18 +147,21 @@
 
     <script>
         const { createApp, ref, onMounted, watch } = Vue;
-        // 核心路径变量
-        const REPO_OWNER = "__REPO_OWNER__", REPO_NAME = "__REPO_NAME__", FILE_PATH = "config.json";
-        const PUBLIC_ENTRY = "https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html", CACHE_KEY = "NEXUS_GH_CACHE";
+        
+        // ?? ÇëÔÚÕâÀïÅäÖÃÄãµÄ GitHub ÐÅÏ¢
+        const REPO_OWNER = "__REPO_OWNER__";
+        const REPO_NAME = "__REPO_NAME__";
+        const FILE_PATH = "config.json";
+        const CACHE_KEY = "NEXUS_GH_CACHE";
 
         createApp({
             setup() {
-                const config = ref({}), token = ref(localStorage.getItem('gh_pat') || ''), sha = ref(''), loading = ref(false), saveStatus = ref(false), newIdInput = ref(''), copyStatus = ref({}), copyItemStatus = ref({});
+                const config = ref({}), token = ref(localStorage.getItem('gh_pat') || ''), sha = ref(''), loading = ref(false), saveStatus = ref(false), newIdInput = ref(''), copyStatus = ref({});
                 const stripProtocol = (u) => u.replace(/^https?:\/\//, '');
 
                 const fetchFromGithub = async () => {
                     const cached = localStorage.getItem(CACHE_KEY);
-                    if (cached) config.value = JSON.parse(cached); // ✨ 本地加速
+                    if (cached) config.value = JSON.parse(cached);
 
                     if(!token.value || token.value.includes("__")) return;
                     try {
@@ -165,17 +178,21 @@
                     } catch(e) {}
                 };
 
+                // ==========================================
+                // ºËÐÄÐÞ¸´: ±£´æÊ±²»ÔÙÖØÖÃ Key£¬±£ÁôÓÃ»§×Ô¶¨ÒåÃû³Æ
+                // ==========================================
                 const cleanupAndReorder = (data) => {
                     const clean = {};
                     Object.keys(data).forEach(uId => {
-                        const newGroups = {}; let gCount = 1;
+                        const newGroups = {};
                         Object.keys(data[uId]).forEach(gName => {
-                            const newLinks = {}; let lCount = 1;
+                            const newLinks = {};
+                            // Ê¹ÓÃ lKey (Ô­Ãû³Æ) ¶ø²»ÊÇ lCount
                             Object.keys(data[uId][gName]).forEach(lKey => {
                                 const url = data[uId][gName][lKey].trim();
-                                if (url && !['https://','http://','https','http'].includes(url)) newLinks[`Link ${lCount++}`] = url;
+                                if (url) newLinks[lKey] = url;
                             });
-                            if (Object.keys(newLinks).length > 0) newGroups[`Group ${gCount++}`] = newLinks;
+                            if (Object.keys(newLinks).length > 0) newGroups[gName] = newLinks;
                         });
                         if (Object.keys(newGroups).length > 0) clean[uId] = newGroups;
                     });
@@ -188,41 +205,63 @@
                         const processed = cleanupAndReorder(config.value);
                         const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
                             method: 'PUT', headers: { 'Authorization': `token ${token.value}`, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ message: "Update config via Manager", content: btoa(unescape(encodeURIComponent(JSON.stringify(processed, null, 2)))), sha: sha.value })
+                            body: JSON.stringify({ message: "Update config via Nexus Manager", content: btoa(unescape(encodeURIComponent(JSON.stringify(processed, null, 2)))), sha: sha.value })
                         });
                         if (res.ok) {
                             const data = await res.json(); sha.value = data.content.sha; config.value = processed;
                             localStorage.setItem(CACHE_KEY, JSON.stringify(processed));
                             saveStatus.value = true; setTimeout(() => saveStatus.value = false, 3000);
                         }
-                    } catch (e) {}
+                    } catch (e) { alert("Save Failed: " + e.message); }
                     loading.value = false;
                 };
 
+                // Helper Functions
                 const updateUrl = (u, g, l, v) => { const p = config.value[u][g][l].startsWith('https') ? 'https://' : 'http://'; config.value[u][g][l] = p + v.replace(/^https?:\/\//, ''); };
                 const toggleSingleProtocol = (u, g, l) => { const url = config.value[u][g][l]; config.value[u][g][l] = url.startsWith('https') ? url.replace('https', 'http') : url.replace('http', 'https'); };
                 const toggleGroupProtocol = (u, g) => { const lks = config.value[u][g], target = Object.values(lks).some(u => u.startsWith('http://')) ? 'https://' : 'http://'; for (const l in lks) lks[l] = target + stripProtocol(lks[l]); };
                 const getGroupStatusClass = (lks) => Object.values(lks).every(u => u.startsWith('https')) ? 'text-primary border-primary/40' : (Object.values(lks).every(u => u.startsWith('http://')) ? 'text-green-500 border-green-500/50' : 'text-yellow-500 border-yellow-500/50');
                 const getGroupStatusLabel = (lks) => Object.values(lks).every(u => u.startsWith('https')) ? 'HTTPS' : 'HTTP';
                 
-                const doCopy = (t, k, s) => { const a = document.createElement("textarea"); a.value = t; a.style.position = "fixed"; a.style.left = "-9999px"; document.body.appendChild(a); a.focus(); a.select(); if (document.execCommand('copy')) { s.value[k] = true; setTimeout(() => s.value[k] = false, 2000); } document.body.removeChild(a); };
-                const getJumpUrl = (uid) => `${PUBLIC_ENTRY}?id=${uid}`;
+                const doCopy = (t, k, s) => { 
+                    const a = document.createElement("textarea"); a.value = t; a.style.position = "fixed"; a.style.left = "-9999px"; 
+                    document.body.appendChild(a); a.focus(); a.select(); 
+                    if (document.execCommand('copy')) { s.value[k] = true; setTimeout(() => s.value[k] = false, 2000); } 
+                    document.body.removeChild(a); 
+                };
+
+                // ºËÐÄÐÞ¸Ä£ºÉú³ÉÖ¸Ïòµ±Ç°Ò³ÃæµÄÁ´½Ó
+                const getJumpUrl = (uid) => {
+                    // »ñÈ¡µ±Ç°Ò³ÃæµØÖ·£¨²»´ø²ÎÊý£©
+                    const baseUrl = window.location.origin + window.location.pathname;
+                    return `${baseUrl}?id=${uid}`;
+                };
+                
                 const copyEndpoint = (uid) => doCopy(getJumpUrl(uid), uid, copyStatus);
-                const copyItem = (url, u, g, l) => doCopy(url, u + g + l, copyItemStatus);
 
                 const addUserId = () => { if (newIdInput.value && !config.value[newIdInput.value] && Object.keys(config.value).length < 100) { config.value[newIdInput.value] = { 'Group 1': { 'Link 1': 'https://' } }; newIdInput.value = ''; } };
                 const addGroup = (u) => { if(Object.keys(config.value[u]).length < 10) config.value[u][`NewGroup_${Date.now()}`] = { 'Link 1': 'https://' }; };
-                const addLink = (u, g) => { if(Object.keys(config.value[u][g]).length < 10) config.value[u][g][`NewLink_${Date.now()}`] = 'https://'; };
+                const addLink = (u, g) => { if(Object.keys(config.value[u][g]).length < 10) config.value[u][g][`Link_${Date.now().toString().slice(-4)}`] = 'https://'; };
+                
                 const renameUser = (o, n) => { if(n && !config.value[n]) { config.value[n] = config.value[o]; delete config.value[o]; } };
                 const renameGroup = (u, o, n) => { if(n && !config.value[u][n]) { config.value[u][n] = config.value[u][o]; delete config.value[u][o]; } };
+                // ÐÞ¸´ÖØÃüÃû Link Ê±µÄÏìÓ¦Ê½ÎÊÌâ
                 const renameLink = (u, g, o, n) => { if(n && !config.value[u][g][n]) { config.value[u][g][n] = config.value[u][g][o]; delete config.value[u][g][o]; } };
+
                 const deleteUser = (u) => { if(confirm(`Delete ID: ${u}?`)) delete config.value[u]; };
                 const deleteGroup = (u, g) => delete config.value[u][g];
                 const deleteLink = (u, g, l) => delete config.value[u][g][l];
 
                 watch(token, (v) => { localStorage.setItem('gh_pat', v); fetchFromGithub(); });
                 onMounted(fetchFromGithub);
-                return { config, token, loading, saveStatus, newIdInput, copyStatus, copyItemStatus, saveToGithub, addUserId, addGroup, addLink, deleteUser, deleteGroup, deleteLink, renameUser, renameGroup, renameLink, stripProtocol, updateUrl, toggleSingleProtocol, toggleGroupProtocol, getGroupStatusClass, getGroupStatusLabel, getJumpUrl, copyEndpoint, copyItem };
+                
+                return { 
+                    config, token, loading, saveStatus, newIdInput, copyStatus, repoOwner: REPO_OWNER, repoName: REPO_NAME,
+                    saveToGithub, addUserId, addGroup, addLink, deleteUser, deleteGroup, deleteLink, 
+                    renameUser, renameGroup, renameLink, stripProtocol, updateUrl, 
+                    toggleSingleProtocol, toggleGroupProtocol, getGroupStatusClass, getGroupStatusLabel, 
+                    getJumpUrl, copyEndpoint 
+                };
             }
         }).mount('#app');
     </script>
