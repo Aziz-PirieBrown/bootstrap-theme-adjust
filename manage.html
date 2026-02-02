@@ -62,10 +62,10 @@
 
     <script>
         const { createApp } = Vue;
-        // 🛠️ 填入你的信息
-        const REPO_OWNER = "你的GitHub用户名"; 
-        const REPO_NAME = "你的仓库名";
-        const FILE_PATH = "config.json";
+    // ✨ 这里的占位符必须跟 .yml 里的 sed 命令完全一致
+    const REPO_OWNER = "__REPO_OWNER__"; 
+    const REPO_NAME = "__REPO_NAME__";
+    const FILE_PATH = "config.json";
 
         createApp({
             data() {
