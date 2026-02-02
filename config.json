@@ -1,4 +1,29 @@
 {
-  "test": "https://www.google.com",
-  "me": "http://192.168.130.18:34832/wewewe/"
+  "me": {
+    "Group 1": {
+      "Link 1": "http://192.168.130.18:34832/wewewe/"
+    }
+  },
+  "mee": {
+    "Group 1": {
+      "Link 1": "http://192.168.130.18:34832/board/"
+    }
+  },
+  "brhrgk": {
+    "Group 1": {
+      "Link 1": "https://dbfb"
+    }
+  },
+  "会提醒": {
+    "Group 1": {
+      "Link 1": "https://楼",
+      "Link 2": "https://具体"
+    },
+    "Group 2": {
+      "Link 1": "https://lol"
+    },
+    "Group 3": {
+      "Link 1": "https://哦哦"
+    }
+  }
 }
