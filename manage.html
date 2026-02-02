@@ -13,7 +13,7 @@
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         
-        /* 强力去除 Edge/Chrome 深色模式表单干预 */
+        /* 强力去除 Edge 深色主题强制生成的白边 */
         input { 
             border: none !important; 
             outline: none !important; 
@@ -22,6 +22,9 @@
             -webkit-appearance: none !important;
             background-color: transparent;
         }
+        
+        .skeleton { background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
@@ -37,11 +40,11 @@
         <header class="bg-card border border-border rounded-xl p-6 mb-6 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h1 class="text-xl sm:text-2xl font-bold text-white uppercase tracking-tight">NEXUS <span class="text-primary">GITHUB</span></h1>
-                <p class="text-slate-500 text-[10px] font-mono mt-1 uppercase text-center md:text-left">Repo: __REPO_OWNER__ / __REPO_NAME__</p>
+                <p class="text-slate-500 text-[10px] font-mono mt-1 uppercase">Repo: __REPO_OWNER__ / __REPO_NAME__</p>
             </div>
             <div class="flex gap-3 w-full md:w-auto">
                 <input type="password" v-model="token" placeholder="GitHub PAT (Local Only)" 
-                       class="bg-slate-900 rounded-lg px-3 py-2 text-sm text-primary focus:bg-slate-950 transition-all flex-1 min-w-[200px]">
+                       class="bg-slate-900 rounded-lg px-3 py-2 text-sm text-primary flex-1 min-w-[200px]">
                 <button @click="saveToGithub" :disabled="loading || !token" 
                         :class="saveStatus ? 'bg-green-600' : 'bg-sky-600 hover:bg-sky-500'"
                         class="px-6 py-2 text-white rounded-lg transition-all disabled:opacity-30 font-bold whitespace-nowrap">
@@ -57,7 +60,7 @@
                     <div class="flex gap-2">
                         <input v-model="newIdInput" @keyup.enter="addUserId" type="text" placeholder="ID NAME" 
                                class="w-full bg-slate-900 rounded-lg px-3 py-2 text-sm text-white font-mono">
-                        <button @click="addUserId" class="bg-slate-700 hover:bg-slate-600 px-4 rounded-lg font-bold">+</button>
+                        <button @click="addUserId" :disabled="Object.keys(config).length >= 100" class="bg-slate-700 hover:bg-slate-600 px-4 rounded-lg font-bold disabled:opacity-20">+</button>
                     </div>
                 </div>
             </div>
@@ -67,11 +70,9 @@
                     
                     <div class="flex flex-col gap-3 mb-6">
                         <div class="flex items-center justify-between w-full">
-                            <div class="flex items-center gap-3 flex-1 min-w-0">
-                                <input type="text" :value="userId" @change="renameUser(userId, $event.target.value)" 
-                                       class="h-10 px-3 rounded bg-slate-800 font-bold text-primary text-sm uppercase outline-none w-full max-w-[240px] text-left truncate shadow-inner">
-                            </div>
-                            <button @click="deleteUser(userId)" class="p-2 text-slate-500 hover:text-red-400 transition-colors">
+                            <input type="text" :value="userId" @change="renameUser(userId, $event.target.value)" 
+                                   class="h-10 px-3 rounded bg-slate-800 font-bold text-primary text-sm uppercase outline-none w-full max-w-[240px] text-left truncate shadow-inner">
+                            <button @click="deleteUser(userId)" class="p-2 text-slate-500 hover:text-red-400">
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                         </div>
@@ -90,14 +91,14 @@
                         <div v-for="(links, groupName) in userData" :key="groupName" class="bg-slate-900/50 rounded-lg p-4 border border-slate-800/30">
                             <div class="flex justify-between items-center mb-3 border-b border-white/5 pb-2">
                                 <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" 
-                                       class="bg-transparent text-xs font-bold text-slate-400 uppercase w-1/3 outline-none focus:text-primary font-mono">
+                                       class="bg-transparent text-xs font-bold text-slate-400 uppercase w-1/3 outline-none font-mono">
                                 <div class="flex items-center gap-2">
                                     <button @click="toggleGroupProtocol(userId, groupName)" 
                                             :class="getGroupStatusClass(links)"
                                             class="px-2 py-0.5 font-bold text-[9px] rounded border transition-all hover:bg-white/5 uppercase">
                                         {{ getGroupStatusLabel(links) }}
                                     </button>
-                                    <button @click="addLink(userId, groupName)" class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all">+🔗</button>
+                                    <button @click="addLink(userId, groupName)" :disabled="Object.keys(links).length >= 10" class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all disabled:opacity-20">+🔗</button>
                                     <button @click="deleteGroup(userId, groupName)" class="text-slate-600 hover:text-red-400 font-bold text-sm px-1">×</button>
                                 </div>
                             </div>
@@ -115,20 +116,19 @@
                                         <a :href="url" target="_blank" class="text-slate-500 hover:text-primary px-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="w-4 h-4"><line x1="2" y1="12" x2="22" y2="12"/><polyline points="15 5 22 12 15 19"/></svg></a>
                                         <button @click="copyItem(url, userId, groupName, name)" class="p-1 text-slate-500 hover:text-primary transition-colors">
                                             <svg class="w-4 h-4" :class="{'text-green-400': copyItemStatus[userId+groupName+name]}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path v-if="!copyItemStatus[userId+groupName+name]" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                                <path v-else d="M5 13l4 4L19 7" />
+                                                <path v-if="!copyItemStatus[userId+groupName+name]" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /><path v-else d="M5 13l4 4L19 7" />
                                             </svg>
                                         </button>
                                         <div class="flex-1 sm:hidden"></div>
                                         <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 font-bold text-sm px-1 sm:hidden">×</button>
                                     </div>
                                     <input type="text" :value="stripProtocol(url)" @input="updateUrl(userId, groupName, name, $event.target.value)" 
-                                           class="w-full sm:flex-1 bg-slate-900 rounded px-2 py-1.5 sm:py-1 text-xs font-mono text-primary truncate">
+                                           class="w-full sm:flex-1 bg-slate-900 rounded px-2 py-1.5 sm:py-1 text-xs font-mono text-primary outline-none truncate">
                                     <button @click="deleteLink(userId, groupName, name)" class="hidden sm:block text-slate-600 hover:text-red-400 font-bold text-sm px-1">×</button>
                                 </div>
                             </div>
                         </div>
-                        <button @click="addGroup(userId)" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:border-primary hover:text-primary rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all">+ New Group</button>
+                        <button @click="addGroup(userId)" :disabled="Object.keys(userData).length >= 10" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:border-primary hover:text-primary rounded-lg text-[10px] font-bold uppercase disabled:opacity-20">+ New Group</button>
                     </div>
                 </div>
             </div>
@@ -137,145 +137,92 @@
 
     <script>
         const { createApp, ref, onMounted, watch } = Vue;
-        // 配置信息
-        const REPO_OWNER = "__REPO_OWNER__"; 
-        const REPO_NAME = "__REPO_NAME__";
-        const FILE_PATH = "config.json";
-        const PUBLIC_ENTRY = "https://yellow-sea-0466b3200.6.azurestaticapps.net/go.html";
+        // 核心路径变量
+        const REPO_OWNER = "__REPO_OWNER__", REPO_NAME = "__REPO_NAME__", FILE_PATH = "config.json";
+        const PUBLIC_ENTRY = "https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html", CACHE_KEY = "NEXUS_GH_CACHE";
 
         createApp({
             setup() {
-                const config = ref({});
-                const token = ref(localStorage.getItem('gh_pat') || '');
-                const sha = ref('');
-                const loading = ref(false);
-                const saveStatus = ref(false);
-                const newIdInput = ref('');
-                const copyStatus = ref({});
-                const copyItemStatus = ref({});
-
-                const stripProtocol = (url) => url.replace(/^https?:\/\//, '');
+                const config = ref({}), token = ref(localStorage.getItem('gh_pat') || ''), sha = ref(''), loading = ref(false), saveStatus = ref(false), newIdInput = ref(''), copyStatus = ref({}), copyItemStatus = ref({});
+                const stripProtocol = (u) => u.replace(/^https?:\/\//, '');
 
                 const fetchFromGithub = async () => {
+                    const cached = localStorage.getItem(CACHE_KEY);
+                    if (cached) config.value = JSON.parse(cached); // ✨ 本地加速
+
                     if(!token.value || token.value.includes("__")) return;
                     try {
-                        const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?v=${Date.now()}`;
-                        const res = await fetch(url, { headers: { 'Authorization': `token ${token.value}` } });
+                        const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?v=${Date.now()}`, { headers: { 'Authorization': `token ${token.value}` } });
                         const data = await res.json();
                         if(res.status === 200) {
+                            const onlineData = JSON.parse(decodeURIComponent(escape(atob(data.content))));
+                            if (JSON.stringify(onlineData) !== JSON.stringify(config.value)) {
+                                config.value = onlineData;
+                                localStorage.setItem(CACHE_KEY, JSON.stringify(onlineData));
+                            }
                             sha.value = data.sha;
-                            config.value = JSON.parse(decodeURIComponent(escape(atob(data.content))));
                         }
-                    } catch(e) { console.error("Fetch failed", e); }
+                    } catch(e) {}
                 };
 
                 const cleanupAndReorder = (data) => {
-                    const cleanData = {};
-                    for (const uId in data) {
-                        const newGroups = {};
-                        let gCount = 1;
-                        for (const gName in data[uId]) {
-                            const newLinks = {};
-                            let lCount = 1;
-                            for (const lName in data[uId][gName]) {
-                                const url = data[uId][gName][lName].trim();
-                                if (url && !['https://','http://','https','http'].includes(url)) {
-                                    newLinks[`Link ${lCount++}`] = url;
-                                }
-                            }
+                    const clean = {};
+                    Object.keys(data).forEach(uId => {
+                        const newGroups = {}; let gCount = 1;
+                        Object.keys(data[uId]).forEach(gName => {
+                            const newLinks = {}; let lCount = 1;
+                            Object.keys(data[uId][gName]).forEach(lKey => {
+                                const url = data[uId][gName][lKey].trim();
+                                if (url && !['https://','http://','https','http'].includes(url)) newLinks[`Link ${lCount++}`] = url;
+                            });
                             if (Object.keys(newLinks).length > 0) newGroups[`Group ${gCount++}`] = newLinks;
-                        }
-                        if (Object.keys(newGroups).length > 0) cleanData[uId] = newGroups;
-                    }
-                    return cleanData;
+                        });
+                        if (Object.keys(newGroups).length > 0) clean[uId] = newGroups;
+                    });
+                    return clean;
                 };
 
                 const saveToGithub = async () => {
                     loading.value = true;
                     try {
                         const processed = cleanupAndReorder(config.value);
-                        const content = btoa(unescape(encodeURIComponent(JSON.stringify(processed, null, 2))));
                         const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
-                            method: 'PUT',
-                            headers: { 'Authorization': `token ${token.value}`, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ message: "Update config via Manager", content, sha: sha.value })
+                            method: 'PUT', headers: { 'Authorization': `token ${token.value}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: "Update config via Manager", content: btoa(unescape(encodeURIComponent(JSON.stringify(processed, null, 2)))), sha: sha.value })
                         });
                         if (res.ok) {
-                            const data = await res.json();
-                            sha.value = data.content.sha;
-                            config.value = processed;
-                            saveStatus.value = true;
-                            setTimeout(() => saveStatus.value = false, 3000);
+                            const data = await res.json(); sha.value = data.content.sha; config.value = processed;
+                            localStorage.setItem(CACHE_KEY, JSON.stringify(processed));
+                            saveStatus.value = true; setTimeout(() => saveStatus.value = false, 3000);
                         }
                     } catch (e) {}
                     loading.value = false;
                 };
 
-                const updateUrl = (u, g, l, val) => {
-                    const prefix = config.value[u][g][l].startsWith('https') ? 'https://' : 'http://';
-                    config.value[u][g][l] = prefix + val.replace(/^https?:\/\//, '');
-                };
-
-                const toggleSingleProtocol = (u, g, l) => {
-                    const url = config.value[u][g][l];
-                    config.value[u][g][l] = url.startsWith('https') ? url.replace('https', 'http') : url.replace('http', 'https');
-                };
-
-                const toggleGroupProtocol = (u, g) => {
-                    const links = config.value[u][g];
-                    const target = Object.values(links).some(url => url.startsWith('http://')) ? 'https://' : 'http://';
-                    for (const l in links) { links[l] = target + stripProtocol(links[l]); }
-                };
-
-                const getGroupStatusClass = (links) => {
-                    const urls = Object.values(links);
-                    if (urls.every(u => u.startsWith('https'))) return 'text-primary border-primary/40';
-                    if (urls.every(u => u.startsWith('http://'))) return 'text-green-500 border-green-500/50';
-                    return 'text-yellow-500 border-yellow-500/50';
-                };
-
-                const getGroupStatusLabel = (links) => Object.values(links).every(u => u.startsWith('https')) ? 'HTTPS' : 'HTTP';
-
-                const doCopy = (text, type, key) => {
-                    const area = document.createElement("textarea"); area.value = text;
-                    area.style.position = "fixed"; area.style.left = "-9999px";
-                    document.body.appendChild(area); area.focus(); area.select();
-                    if (document.execCommand('copy')) {
-                        if (type === 'endpoint') {
-                            copyStatus.value[key] = true;
-                            setTimeout(() => copyStatus.value[key] = false, 2000);
-                        } else {
-                            copyItemStatus.value[key] = true;
-                            setTimeout(() => copyItemStatus.value[key] = false, 2000);
-                        }
-                    }
-                    document.body.removeChild(area);
-                };
-
+                const updateUrl = (u, g, l, v) => { const p = config.value[u][g][l].startsWith('https') ? 'https://' : 'http://'; config.value[u][g][l] = p + v.replace(/^https?:\/\//, ''); };
+                const toggleSingleProtocol = (u, g, l) => { const url = config.value[u][g][l]; config.value[u][g][l] = url.startsWith('https') ? url.replace('https', 'http') : url.replace('http', 'https'); };
+                const toggleGroupProtocol = (u, g) => { const lks = config.value[u][g], target = Object.values(lks).some(u => u.startsWith('http://')) ? 'https://' : 'http://'; for (const l in lks) lks[l] = target + stripProtocol(lks[l]); };
+                const getGroupStatusClass = (lks) => Object.values(lks).every(u => u.startsWith('https')) ? 'text-primary border-primary/40' : (Object.values(lks).every(u => u.startsWith('http://')) ? 'text-green-500 border-green-500/50' : 'text-yellow-500 border-yellow-500/50');
+                const getGroupStatusLabel = (lks) => Object.values(lks).every(u => u.startsWith('https')) ? 'HTTPS' : 'HTTP';
+                
+                const doCopy = (t, k, s) => { const a = document.createElement("textarea"); a.value = t; a.style.position = "fixed"; a.style.left = "-9999px"; document.body.appendChild(a); a.focus(); a.select(); if (document.execCommand('copy')) { s.value[k] = true; setTimeout(() => s.value[k] = false, 2000); } document.body.removeChild(a); };
                 const getJumpUrl = (uid) => `${PUBLIC_ENTRY}?id=${uid}`;
-                const copyEndpoint = (uid) => doCopy(getJumpUrl(uid), 'endpoint', uid);
-                const copyItem = (url, u, g, l) => doCopy(url, 'item', u + g + l);
+                const copyEndpoint = (uid) => doCopy(getJumpUrl(uid), uid, copyStatus);
+                const copyItem = (url, u, g, l) => doCopy(url, u + g + l, copyItemStatus);
 
-                const addUserId = () => { if (newIdInput.value && !config.value[newIdInput.value]) { config.value[newIdInput.value] = { 'Group 1': { 'Link 1': 'https://' } }; newIdInput.value = ''; } };
-                const addGroup = (u) => { config.value[u][`NewGroup_${Date.now()}`] = { 'Link 1': 'https://' }; };
-                const addLink = (u, g) => { config.value[u][g][`NewLink_${Date.now()}`] = 'https://'; };
-                const deleteUser = (u) => { if(confirm(`Delete ID: ${u}?`)) delete config.value[u]; };
-                const deleteGroup = (u, g) => delete config.value[u][g];
-                const deleteLink = (u, g, l) => delete config.value[u][g][l];
+                const addUserId = () => { if (newIdInput.value && !config.value[newIdInput.value] && Object.keys(config.value).length < 100) { config.value[newIdInput.value] = { 'Group 1': { 'Link 1': 'https://' } }; newIdInput.value = ''; } };
+                const addGroup = (u) => { if(Object.keys(config.value[u]).length < 10) config.value[u][`NewGroup_${Date.now()}`] = { 'Link 1': 'https://' }; };
+                const addLink = (u, g) => { if(Object.keys(config.value[u][g]).length < 10) config.value[u][g][`NewLink_${Date.now()}`] = 'https://'; };
                 const renameUser = (o, n) => { if(n && !config.value[n]) { config.value[n] = config.value[o]; delete config.value[o]; } };
                 const renameGroup = (u, o, n) => { if(n && !config.value[u][n]) { config.value[u][n] = config.value[u][o]; delete config.value[u][o]; } };
                 const renameLink = (u, g, o, n) => { if(n && !config.value[u][g][n]) { config.value[u][g][n] = config.value[u][g][o]; delete config.value[u][g][o]; } };
+                const deleteUser = (u) => { if(confirm(`Delete ID: ${u}?`)) delete config.value[u]; };
+                const deleteGroup = (u, g) => delete config.value[u][g];
+                const deleteLink = (u, g, l) => delete config.value[u][g][l];
 
                 watch(token, (v) => { localStorage.setItem('gh_pat', v); fetchFromGithub(); });
                 onMounted(fetchFromGithub);
-
-                return { 
-                    config, token, loading, saveStatus, newIdInput, copyStatus, copyItemStatus,
-                    saveToGithub, addUserId, addGroup, addLink, 
-                    deleteUser, deleteGroup, deleteLink, renameUser, renameGroup, renameLink,
-                    stripProtocol, updateUrl, toggleSingleProtocol, toggleGroupProtocol, 
-                    getGroupStatusClass, getGroupStatusLabel, getJumpUrl, copyEndpoint, copyItem
-                };
+                return { config, token, loading, saveStatus, newIdInput, copyStatus, copyItemStatus, saveToGithub, addUserId, addGroup, addLink, deleteUser, deleteGroup, deleteLink, renameUser, renameGroup, renameLink, stripProtocol, updateUrl, toggleSingleProtocol, toggleGroupProtocol, getGroupStatusClass, getGroupStatusLabel, getJumpUrl, copyEndpoint, copyItem };
             }
         }).mount('#app');
     </script>
