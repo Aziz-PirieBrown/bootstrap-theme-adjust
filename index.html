@@ -94,35 +94,37 @@
                                 <div class="flex items-center gap-2">
                                     <button @click="toggleGroupProtocol(userId, groupName)" 
                                             :class="getGroupStatusClass(links)"
-                                            class="text-[9px] font-bold px-2 py-0.5 rounded border transition-all">
+                                            class="text-[9px] font-bold px-2 py-0.5 rounded border transition-all hover:bg-white/5">
                                         {{ getGroupStatusLabel(links) }}
                                     </button>
-                                    <button @click="addLink(userId, groupName)" :disabled="Object.keys(links).length >= 10" class="text-[11px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all disabled:opacity-30">
+                                    <button @click="addLink(userId, groupName)" :disabled="Object.keys(links).length >= 10" class="text-[11px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all">
                                         {{ Object.keys(links).length >= 10 ? 'MAX' : '+🔗' }}
                                     </button>
                                     <button @click="deleteGroup(userId, groupName)" class="text-slate-600 hover:text-red-400 px-1 font-bold text-sm">×</button>
                                 </div>
                             </div>
-                            <div class="space-y-2">
-                                <div v-for="(url, name) in links" :key="name" class="flex items-center gap-1 group/link">
-                                    <button @click="toggleSingleProtocol(userId, groupName, name)" 
-                                            :class="url.startsWith('https') ? 'text-primary border-primary/40' : 'text-green-500 border-green-500/50'"
-                                            class="w-6 h-6 shrink-0 text-[10px] font-bold rounded border transition-all hover:bg-white/5">
-                                        {{ url.startsWith('https') ? 'S' : 'H' }}
-                                    </button>
-
-                                    <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" 
-                                           class="w-20 sm:w-1/4 shrink-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 outline-none focus:border-primary"
-                                           style="min-width: 90px;">
-                                    
-                                    <a :href="url" target="_blank" class="text-slate-500 hover:text-primary flex items-center shrink-0 w-8 justify-center transition-colors">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="w-full h-4"><line x1="2" y1="12" x2="22" y2="12"/><polyline points="15 5 22 12 15 19"/></svg>
-                                    </a>
+                            <div class="space-y-4 sm:space-y-2">
+                                <div v-for="(url, name) in links" :key="name" class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-1">
+                                    <div class="flex items-center gap-1 w-full sm:w-auto">
+                                        <button @click="toggleSingleProtocol(userId, groupName, name)" 
+                                                :class="url.startsWith('https') ? 'text-primary border-primary/40' : 'text-green-500 border-green-500/50'"
+                                                class="w-6 h-6 shrink-0 text-[10px] font-bold rounded border transition-all hover:bg-white/5">
+                                            {{ url.startsWith('https') ? 'S' : 'H' }}
+                                        </button>
+                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" 
+                                               class="w-24 sm:w-1/4 shrink-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 outline-none focus:border-primary"
+                                               style="min-width: 90px;">
+                                        <a :href="url" target="_blank" class="text-slate-500 hover:text-primary flex items-center shrink-0 w-8 justify-center transition-colors">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="w-full h-4"><line x1="2" y1="12" x2="22" y2="12"/><polyline points="15 5 22 12 15 19"/></svg>
+                                        </a>
+                                        <div class="flex-1 sm:hidden"></div>
+                                        <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 px-1 shrink-0 font-bold text-sm sm:hidden">×</button>
+                                    </div>
 
                                     <input type="text" :value="stripProtocol(url)" @input="updateUrl(userId, groupName, name, $event.target.value)" 
-                                           class="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs font-mono text-primary truncate outline-none focus:border-primary">
+                                           class="w-full sm:flex-1 bg-slate-900 border border-slate-800 rounded px-2 py-1.5 sm:py-1 text-xs font-mono text-primary outline-none focus:border-primary">
                                     
-                                    <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 px-1 shrink-0 font-bold text-sm">×</button>
+                                    <button @click="deleteLink(userId, groupName, name)" class="hidden sm:block text-slate-600 hover:text-red-400 px-1 shrink-0 font-bold text-sm">×</button>
                                 </div>
                             </div>
                         </div>
@@ -152,7 +154,6 @@
                 const copyStatus = ref({});
                 let timer = null;
 
-                // 核心：清理与重排序
                 const cleanupAndReorder = (data) => {
                     const cleanData = JSON.parse(JSON.stringify(data));
                     for (const userId in cleanData) {
@@ -165,7 +166,7 @@
                             let lCount = 1;
                             Object.keys(links).forEach(lKey => {
                                 const url = links[lKey].trim();
-                                if (url && url !== 'https://' && url !== 'http://' && url !== 'https' && url !== 'http') {
+                                if (url && !['https://','http://','https','http'].includes(url)) {
                                     newLinks[`Link ${lCount++}`] = url;
                                 }
                             });
@@ -196,14 +197,12 @@
                     } catch (e) { statusText.value = 'Save Error'; } finally { isSaving.value = false; }
                 };
 
-                // URL 纯净处理
                 const stripProtocol = (url) => url.replace(/^https?:\/\//, '');
                 const updateUrl = (id, gn, ln, val) => {
                     const prefix = config.value[id][gn][ln].startsWith('https') ? 'https://' : 'http://';
                     config.value[id][gn][ln] = prefix + val.replace(/^https?:\/\//, '');
                 };
 
-                // 协议切换逻辑
                 const toggleSingleProtocol = (id, gn, ln) => {
                     const url = config.value[id][gn][ln];
                     config.value[id][gn][ln] = url.startsWith('https') ? url.replace('https', 'http') : url.replace('http', 'https');
@@ -212,10 +211,8 @@
                 const toggleGroupProtocol = (id, gn) => {
                     const links = config.value[id][gn];
                     const hasHttp = Object.values(links).some(u => u.startsWith('http://'));
-                    const target = hasHttp ? 'https://' : 'http://'; // 如果有 http 统统升为 https，反之降级
-                    for (const key in links) {
-                        links[key] = target + stripProtocol(links[key]);
-                    }
+                    const target = hasHttp ? 'https://' : 'http://';
+                    for (const key in links) { links[key] = target + stripProtocol(links[key]); }
                 };
 
                 const getGroupStatusClass = (links) => {
@@ -224,16 +221,14 @@
                     const allHttp = urls.every(u => u.startsWith('http://'));
                     if (allHttps) return 'text-primary border-primary/40';
                     if (allHttp) return 'text-green-500 border-green-500/50';
-                    return 'text-yellow-500 border-yellow-500/50'; // 混合状态显示黄色
+                    return 'text-yellow-500 border-yellow-500/50';
                 };
 
                 const getGroupStatusLabel = (links) => {
                     const urls = Object.values(links);
                     const allHttps = urls.every(u => u.startsWith('https'));
                     const allHttp = urls.every(u => u.startsWith('http://'));
-                    if (allHttps) return 'S';
-                    if (allHttp) return 'H';
-                    return 'H'; // 混合显示 H 但背景是黄色
+                    return (allHttps) ? 'S' : 'H';
                 };
 
                 const addUser = () => { if (newUserId.value && !config.value[newUserId.value]) { config.value[newUserId.value] = { 'Group 1': { 'Link 1': 'https://' } }; newUserId.value = ''; } };
