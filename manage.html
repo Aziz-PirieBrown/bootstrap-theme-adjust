@@ -1,132 +1,249 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus 静态配置管理</title>
+    <title>Nexus | GitHub Config Manager</title>
+    <style>
+        [v-cloak] { display: none !important; }
+        body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; margin: 0; }
+        .init-loading { color: #38bdf8; font-family: monospace; font-size: 12px; text-transform: uppercase; }
+        html { scroll-behavior: smooth; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        
+        /* 强力去除浏览器干预样式 */
+        input { 
+            border: none !important; 
+            outline: none !important; 
+            box-shadow: none !important; 
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            background-color: transparent;
+        }
+    </style>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { bg: '#0f172a', card: '#1e293b', border: '#334155', primary: '#38bdf8' } } }
+        }
+    </script>
 </head>
-<body class="bg-slate-900 text-slate-200 min-h-screen p-4 md:p-8">
-    <div id="app" class="max-w-4xl mx-auto">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl">
+<body class="min-h-screen pb-20 relative text-slate-300">
+    <div id="app" v-cloak class="max-w-6xl mx-auto p-4 md:p-8">
+        <header class="bg-card border border-border rounded-xl p-6 mb-6 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-white">Nexus <span class="text-sky-400">Static Editor</span></h1>
-                <p class="text-slate-500 text-xs mt-1">Repo: __REPO_OWNER__ / __REPO_NAME__</p>
+                <h1 class="text-xl sm:text-2xl font-bold text-white uppercase tracking-tight">NEXUS <span class="text-primary">GITHUB</span></h1>
+                <p class="text-slate-500 text-[10px] font-mono mt-1 uppercase">Repo: __REPO_OWNER__ / __REPO_NAME__</p>
             </div>
             <div class="flex gap-3 w-full md:w-auto">
-                <input type="password" v-model="token" placeholder="输入 GitHub PAT (仅存本地)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500 flex-1 min-w-[200px]">
-                <button @click="saveToGithub" :disabled="loading || !token" class="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition-all disabled:opacity-30 font-medium">
-                    {{ loading ? '同步中...' : '提交更新' }}
+                <input type="password" v-model="token" placeholder="GitHub PAT (Local Only)" 
+                       class="bg-slate-900 rounded-lg px-3 py-2 text-sm text-primary focus:bg-slate-950 transition-all flex-1 min-w-[200px]">
+                <button @click="saveToGithub" :disabled="loading || !token" 
+                        class="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition-all disabled:opacity-30 font-bold whitespace-nowrap">
+                    {{ loading ? 'SYNCING...' : 'COMMIT' }}
                 </button>
             </div>
-        </div>
+        </header>
 
-        <div class="space-y-6">
-            <div v-for="(userData, userId) in config" :key="userId" class="bg-slate-800 rounded-2xl p-6 border-l-4 border-sky-500 shadow-lg">
-                <div class="flex justify-between items-center mb-6">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-sky-500 uppercase">ID:</span>
-                        <input v-model="newKeys[userId]" @change="renameUserId(userId)" class="bg-transparent text-xl font-bold text-white focus:outline-none border-b border-transparent focus:border-sky-500">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-4">
+                <div class="bg-card border border-border rounded-xl p-6 shadow-lg sticky top-8">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-widest">New Identity</h3>
+                    <div class="flex gap-2">
+                        <input v-model="newIdInput" @keyup.enter="addUserId" type="text" placeholder="ID NAME" 
+                               class="w-full bg-slate-900 rounded-lg px-3 py-2 text-sm text-white font-mono">
+                        <button @click="addUserId" class="bg-slate-700 hover:bg-slate-600 px-4 rounded-lg font-bold">+</button>
                     </div>
-                    <button @click="deleteUserId(userId)" class="text-rose-400 hover:text-rose-300 text-sm">删除 ID</button>
-                </div>
-
-                <div class="space-y-6">
-                    <div v-for="(links, groupName) in userData" :key="groupName" class="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-                        <div class="flex justify-between items-center mb-4">
-                            <input v-model="groupKeys[userId + groupName]" @change="renameGroup(userId, groupName)" class="bg-transparent text-sm font-semibold text-slate-400 focus:outline-none border-b border-transparent focus:border-sky-500" placeholder="分组名称">
-                            <button @click="deleteGroup(userId, groupName)" class="text-slate-500 hover:text-rose-400 text-xs">删除分组</button>
-                        </div>
-
-                        <div class="space-y-3">
-                            <div v-for="(url, linkName) in links" :key="linkName" class="flex flex-col md:flex-row gap-3">
-                                <input v-model="linkKeys[userId + groupName + linkName]" @change="renameLink(userId, groupName, linkName)" class="md:w-1/4 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm" placeholder="链接名">
-                                <input v-model="config[userId][groupName][linkName]" class="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-sky-300" placeholder="https://...">
-                                <button @click="deleteLink(userId, groupName, linkName)" class="text-slate-600 hover:text-rose-400">✕</button>
-                            </div>
-                            <button @click="addLink(userId, groupName)" class="text-xs text-sky-500 hover:text-sky-400 font-medium">+ 添加链接</button>
-                        </div>
-                    </div>
-                    <button @click="addGroup(userId)" class="w-full py-2 border border-dashed border-slate-700 rounded-lg text-xs text-slate-500 hover:border-sky-500 hover:text-sky-500">+ 新增分组</button>
                 </div>
             </div>
-            
-            <button @click="addUserId" class="w-full py-6 border-2 border-dashed border-slate-700 rounded-2xl text-slate-500 hover:border-sky-500 hover:text-sky-500 transition-all text-lg font-medium">+ 创建全新跳转 ID</button>
+
+            <div class="lg:col-span-8 space-y-6">
+                <div v-for="(userData, userId) in config" :key="userId" class="bg-card border border-border rounded-xl p-6 shadow-lg relative mb-6">
+                    
+                    <div class="flex flex-col gap-3 mb-6 pb-4 border-b border-white/5">
+                        <div class="flex items-center justify-between w-full">
+                            <input type="text" :value="userId" @change="renameUser(userId, $event.target.value)" 
+                                   class="h-10 px-3 rounded bg-slate-800 font-bold text-primary text-sm uppercase outline-none w-full max-w-[240px] text-left truncate shadow-inner">
+                            <button @click="deleteUser(userId)" class="p-2 text-slate-500 hover:text-red-400 transition-colors">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div v-for="(links, groupName) in userData" :key="groupName" class="bg-slate-900/50 rounded-lg p-4 border border-slate-800/30">
+                            <div class="flex justify-between items-center mb-3 border-b border-white/5 pb-2">
+                                <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" 
+                                       class="bg-transparent text-xs font-bold text-slate-400 uppercase w-1/3 focus:text-primary font-mono">
+                                <div class="flex items-center gap-2">
+                                    <button @click="toggleGroupProtocol(userId, groupName)" 
+                                            :class="getGroupStatusClass(links)"
+                                            class="px-2 py-0.5 font-bold text-[9px] rounded border transition-all uppercase">
+                                        {{ getGroupStatusLabel(links) }}
+                                    </button>
+                                    <button @click="addLink(userId, groupName)" class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all">+🔗</button>
+                                    <button @click="deleteGroup(userId, groupName)" class="text-slate-600 hover:text-red-400 font-bold text-sm px-1">×</button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 sm:space-y-2">
+                                <div v-for="(url, name) in links" :key="name" class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-1">
+                                    <div class="flex items-center gap-1 w-full sm:w-auto">
+                                        <button @click="toggleSingleProtocol(userId, groupName, name)" 
+                                                :class="url.startsWith('https') ? 'text-primary border-primary/40' : 'text-green-500 border-green-500/50'"
+                                                class="w-14 h-6 shrink-0 text-[8px] font-black rounded border transition-all hover:bg-white/5 text-center">
+                                            {{ url.startsWith('https') ? 'HTTPS' : 'HTTP' }}
+                                        </button>
+                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" 
+                                               class="w-24 shrink-0 bg-slate-900 rounded px-2 py-1 text-xs text-slate-300 font-mono" style="min-width: 90px;">
+                                        <a :href="url" target="_blank" class="text-slate-500 hover:text-primary px-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="w-4 h-4"><line x1="2" y1="12" x2="22" y2="12"/><polyline points="15 5 22 12 15 19"/></svg></a>
+                                        <button @click="copyText(url)" class="p-1 text-slate-500 hover:text-primary"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></button>
+                                        <div class="flex-1 sm:hidden"></div>
+                                        <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 font-bold text-sm px-1 sm:hidden">×</button>
+                                    </div>
+                                    <input type="text" :value="stripProtocol(url)" @input="updateUrl(userId, groupName, name, $event.target.value)" 
+                                           class="w-full sm:flex-1 bg-slate-900 rounded px-2 py-1.5 sm:py-1 text-xs font-mono text-primary truncate">
+                                    <button @click="deleteLink(userId, groupName, name)" class="hidden sm:block text-slate-600 hover:text-red-400 font-bold text-sm px-1">×</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button @click="addGroup(userId)" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:border-primary hover:text-primary rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all">+ New Group</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        const { createApp } = Vue;
-        // 自动注入变量
+        const { createApp, ref, onMounted, watch } = Vue;
         const REPO_OWNER = "__REPO_OWNER__"; 
         const REPO_NAME = "__REPO_NAME__";
         const FILE_PATH = "config.json";
 
         createApp({
-            data() {
-                return {
-                    config: {},
-                    newKeys: {}, groupKeys: {}, linkKeys: {},
-                    token: localStorage.getItem('gh_pat') || '',
-                    sha: '', loading: false
-                }
-            },
-            watch: {
-                token(newVal) { localStorage.setItem('gh_pat', newVal); this.fetchFromGithub(); }
-            },
-            mounted() { if(this.token) this.fetchFromGithub(); },
-            methods: {
-                async fetchFromGithub() {
-                    if(!this.token || this.token.includes("__")) return;
+            setup() {
+                const config = ref({});
+                const token = ref(localStorage.getItem('gh_pat') || '');
+                const sha = ref('');
+                const loading = ref(false);
+                const newIdInput = ref('');
+
+                const stripProtocol = (url) => url.replace(/^https?:\/\//, '');
+
+                const fetchFromGithub = async () => {
+                    if(!token.value || token.value.includes("__")) return;
                     try {
                         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?v=${Date.now()}`;
-                        const res = await fetch(url, { headers: { 'Authorization': `token ${this.token}` } });
+                        const res = await fetch(url, { headers: { 'Authorization': `token ${token.value}` } });
                         const data = await res.json();
                         if(res.status === 200) {
-                            this.sha = data.sha;
-                            this.config = JSON.parse(decodeURIComponent(escape(atob(data.content))));
-                            this.refreshKeys();
+                            sha.value = data.sha;
+                            config.value = JSON.parse(decodeURIComponent(escape(atob(data.content))));
                         }
-                    } catch(e) { console.error("加载失败", e); }
-                },
-                refreshKeys() {
-                    for (let u in this.config) {
-                        this.newKeys[u] = u;
-                        for (let g in this.config[u]) {
-                            this.groupKeys[u + g] = g;
-                            for (let l in this.config[u][g]) {
-                                this.linkKeys[u + g + l] = l;
+                    } catch(e) { console.error("Fetch failed", e); }
+                };
+
+                const cleanupAndReorder = (data) => {
+                    const cleanData = {};
+                    for (const uId in data) {
+                        const newGroups = {};
+                        let gCount = 1;
+                        for (const gName in data[uId]) {
+                            const newLinks = {};
+                            let lCount = 1;
+                            for (const lName in data[uId][gName]) {
+                                const url = data[uId][gName][lName].trim();
+                                if (url && !['https://','http://','https','http'].includes(url)) {
+                                    newLinks[`Link ${lCount++}`] = url;
+                                }
                             }
+                            if (Object.keys(newLinks).length > 0) newGroups[`Group ${gCount++}`] = newLinks;
                         }
+                        if (Object.keys(newGroups).length > 0) cleanData[uId] = newGroups;
                     }
-                },
-                addUserId() { const id = "id_" + Math.random().toString(36).slice(-4); this.config[id] = { "分组 1": { "链接 1": "https://" } }; this.refreshKeys(); },
-                addGroup(u) { this.config[u]["新分组"] = { "新链接": "https://" }; this.refreshKeys(); },
-                addLink(u, g) { this.config[u][g]["新链接"] = "https://"; this.refreshKeys(); },
-                deleteUserId(u) { delete this.config[u]; },
-                deleteGroup(u, g) { delete this.config[u][g]; },
-                deleteLink(u, g, l) { delete this.config[u][g][l]; },
-                renameUserId(oldK) { const newK = this.newKeys[oldK]; if (newK && newK !== oldK) { this.config[newK] = this.config[oldK]; delete this.config[oldK]; this.refreshKeys(); } },
-                renameGroup(u, oldG) { const newG = this.groupKeys[u + oldG]; if (newG && newG !== oldG) { this.config[u][newG] = this.config[u][oldG]; delete this.config[u][oldG]; this.refreshKeys(); } },
-                renameLink(u, g, oldL) { const newL = this.linkKeys[u + g + oldL]; if (newL && newL !== oldL) { this.config[u][g][newL] = this.config[u][g][oldL]; delete this.config[u][g][oldL]; this.refreshKeys(); } },
-                async saveToGithub() {
-                    this.loading = true;
+                    return cleanData;
+                };
+
+                const saveToGithub = async () => {
+                    loading.value = true;
                     try {
-                        const content = btoa(unescape(encodeURIComponent(JSON.stringify(this.config, null, 2))));
+                        const processed = cleanupAndReorder(config.value);
+                        const content = btoa(unescape(encodeURIComponent(JSON.stringify(processed, null, 2))));
                         const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
                             method: 'PUT',
-                            headers: { 'Authorization': `token ${this.token}`, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ message: "Update config via Manager", content, sha: this.sha })
+                            headers: { 'Authorization': `token ${token.value}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: "Update config via Manager", content, sha: sha.value })
                         });
                         if (res.ok) {
                             const data = await res.json();
-                            this.sha = data.content.sha;
-                            alert("✅ 更新成功！稍后请访问 goo.html 测试。");
-                        } else { alert("❌ 保存失败，请检查 Token 权限。"); }
-                    } catch (e) { alert("网络错误"); }
-                    this.loading = false;
-                }
+                            sha.value = data.content.sha;
+                            config.value = processed; // 更新本地显示为重排后的
+                            alert("✅ Sync Success!");
+                        } else { alert("❌ Auth Failed. Check Token."); }
+                    } catch (e) { alert("Network Error"); }
+                    loading.value = false;
+                };
+
+                const updateUrl = (u, g, l, val) => {
+                    const prefix = config.value[u][g][l].startsWith('https') ? 'https://' : 'http://';
+                    config.value[u][g][l] = prefix + val.replace(/^https?:\/\//, '');
+                };
+
+                const toggleSingleProtocol = (u, g, l) => {
+                    const url = config.value[u][g][l];
+                    config.value[u][g][l] = url.startsWith('https') ? url.replace('https', 'http') : url.replace('http', 'https');
+                };
+
+                const toggleGroupProtocol = (u, g) => {
+                    const links = config.value[u][g];
+                    const target = Object.values(links).some(url => url.startsWith('http://')) ? 'https://' : 'http://';
+                    for (const l in links) { links[l] = target + stripProtocol(links[l]); }
+                };
+
+                const getGroupStatusClass = (links) => {
+                    const urls = Object.values(links);
+                    if (urls.every(u => u.startsWith('https'))) return 'text-primary border-primary/40';
+                    if (urls.every(u => u.startsWith('http://'))) return 'text-green-500 border-green-500/50';
+                    return 'text-yellow-500 border-yellow-500/50';
+                };
+
+                const getGroupStatusLabel = (links) => Object.values(links).every(u => u.startsWith('https')) ? 'HTTPS' : 'HTTP';
+
+                const addUserId = () => {
+                    if (newIdInput.value && !config.value[newIdInput.value]) {
+                        config.value[newIdInput.value] = { 'Group 1': { 'Link 1': 'https://' } };
+                        newIdInput.value = '';
+                    }
+                };
+
+                const addGroup = (u) => { config.value[u][`New Group ${Date.now()}`] = { 'Link 1': 'https://' }; };
+                const addLink = (u, g) => { config.value[u][g][`New Link ${Date.now()}`] = 'https://'; };
+                const deleteUser = (u) => { if(confirm(`Delete ${u}?`)) delete config.value[u]; };
+                const deleteGroup = (u, g) => delete config.value[u][g];
+                const deleteLink = (u, g, l) => delete config.value[u][g][l];
+
+                const renameUser = (o, n) => { if(n && !config.value[n]) { config.value[n] = config.value[o]; delete config.value[o]; } };
+                const renameGroup = (u, o, n) => { if(n && !config.value[u][n]) { config.value[u][n] = config.value[u][o]; delete config.value[u][o]; } };
+                const renameLink = (u, g, o, n) => { if(n && !config.value[u][g][n]) { config.value[u][g][n] = config.value[u][g][o]; delete config.value[u][g][o]; } };
+
+                const copyText = (text) => {
+                    navigator.clipboard.writeText(text);
+                    alert("Copied: " + text);
+                };
+
+                watch(token, (v) => { localStorage.setItem('gh_pat', v); fetchFromGithub(); });
+                onMounted(fetchFromGithub);
+
+                return { 
+                    config, token, loading, newIdInput, saveToGithub, addUserId, addGroup, addLink, 
+                    deleteUser, deleteGroup, deleteLink, renameUser, renameGroup, renameLink,
+                    stripProtocol, updateUrl, toggleSingleProtocol, toggleGroupProtocol, 
+                    getGroupStatusClass, getGroupStatusLabel, copyText
+                };
             }
         }).mount('#app');
     </script>
