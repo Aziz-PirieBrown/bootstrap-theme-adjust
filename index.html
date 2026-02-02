@@ -6,7 +6,7 @@
     <title>NEXUS | Azure Link Manager</title>
     <style>
         [v-cloak] { display: none !important; }
-        body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; margin: 0; }
+        body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; margin: 0; }
         .init-loading { color: #38bdf8; font-family: monospace; font-size: 12px; text-transform: uppercase; }
         html { scroll-behavior: smooth; }
         ::-webkit-scrollbar { width: 8px; }
@@ -26,10 +26,10 @@
 <body class="min-h-screen pb-20 relative">
     <div id="app" class="max-w-6xl mx-auto p-4 md:p-8">
         <header class="bg-card border border-border rounded-xl p-6 mb-6 shadow-lg flex justify-between items-center">
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 text-sm sm:text-base">
                 <div class="w-3 h-3 rounded-full transition-colors duration-500" :class="statusColor || 'bg-yellow-500'"></div>
                 <div>
-                    <h1 class="text-2xl font-bold text-white text-sm sm:text-2xl">NEXUS <span class="text-primary">AZURE</span></h1>
+                    <h1 class="text-xl sm:text-2xl font-bold text-white">NEXUS <span class="text-primary">AZURE</span></h1>
                     <div class="text-[10px] sm:text-xs font-mono uppercase tracking-tighter flex gap-2">
                         <span class="text-slate-400">CLOUD_MODE |</span>
                         <span class="init-loading" :class="{'text-green-400': statusText==='Synced', 'text-yellow-400': statusText && statusText.includes('Waking')}">
@@ -50,10 +50,18 @@
             </div>
         </div>
 
-        <div v-cloak v-if="Object.keys(config).length > 0" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div v-if="Object.keys(config).length === 0" class="space-y-6">
+            <div class="h-10 w-full skeleton rounded-lg opacity-20 mb-8"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div class="lg:col-span-4 h-48 skeleton rounded-xl border border-border opacity-50"></div>
+                <div class="lg:col-span-8 h-80 skeleton rounded-xl border border-border opacity-50"></div>
+            </div>
+        </div>
+
+        <div v-cloak v-else class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div class="lg:col-span-4">
                 <div class="bg-card border border-border rounded-xl p-6 shadow-lg sticky top-8">
-                    <h3 class="text-xs font-bold text-slate-500 uppercase mb-4">New Identity</h3>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-widest">New Identity</h3>
                     <div class="flex gap-2">
                         <input v-model="newUserId" @keyup.enter="addUser" type="text" placeholder="ID" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono">
                         <button @click="addUser" class="bg-slate-700 hover:bg-slate-600 px-4 rounded-lg font-bold">+</button>
@@ -77,7 +85,7 @@
                             </button>
                         </div>
                         
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 overflow-hidden">
                             <a :href="getJumpUrl(userId)" target="_blank" class="text-xs font-mono text-blue-400 hover:text-blue-300 transition-colors truncate">🔗 ?id={{ userId }}</a>
                             <button @click="copyLink(userId)" class="text-slate-500 hover:text-primary transition-colors flex items-center gap-1 shrink-0">
                                 <svg class="w-4 h-4" :class="{'text-green-400': copyStatus[userId]}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -92,16 +100,16 @@
                     <div class="space-y-4">
                         <div v-for="(links, groupName) in userGroups" :key="groupName" class="bg-slate-900/50 rounded-lg p-3 sm:p-4 border border-slate-800/50">
                             <div class="flex justify-between items-center mb-3 border-b border-white/5 pb-2">
-                                <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" class="bg-transparent text-xs font-bold text-slate-400 uppercase w-1/2">
+                                <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" class="bg-transparent text-xs font-bold text-slate-400 uppercase w-1/2 focus:text-primary outline-none">
                                 <div class="flex items-center gap-2">
                                     <button @click="addLink(userId, groupName)" class="text-[10px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all">+ LINK</button>
-                                    <button @click="deleteGroup(userId, groupName)" class="text-slate-600 hover:text-red-400 px-1 text-sm font-bold">×</button>
+                                    <button @click="deleteGroup(userId, groupName)" class="text-slate-600 hover:text-red-400 px-1 font-bold">×</button>
                                 </div>
                             </div>
                             <div class="space-y-2">
                                 <div v-for="(url, name) in links" :key="name" class="flex items-center gap-1 group/link">
                                     <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" 
-                                           class="w-20 sm:w-1/4 shrink-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300"
+                                           class="w-20 sm:w-1/4 shrink-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 focus:border-primary outline-none"
                                            style="min-width: 90px;">
                                     
                                     <a :href="config[userId][groupName][name]" target="_blank" class="text-slate-500 hover:text-primary flex items-center shrink-0 w-8 justify-center">
@@ -110,30 +118,25 @@
                                         </svg>
                                     </a>
 
-                                    <input type="text" v-model="config[userId][groupName][name]" class="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs font-mono text-primary truncate">
-                                    <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 px-1 shrink-0 text-sm font-bold">×</button>
+                                    <input type="text" v-model="config[userId][groupName][name]" class="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs font-mono text-primary truncate focus:border-primary outline-none">
+                                    <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-red-400 px-1 shrink-0 font-bold">×</button>
                                 </div>
                             </div>
                         </div>
-                        <button @click="addGroup(userId)" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:text-primary rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all">+ New Group</button>
+                        <button @click="addGroup(userId)" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:text-primary rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all hover:border-primary">+ New Group</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div v-else class="space-y-6">
-            <div class="h-10 w-full skeleton rounded-lg opacity-20 mb-8"></div>
-            <div class="h-64 w-full skeleton rounded-xl border border-border opacity-50"></div>
-        </div>
-
         <div v-cloak class="fixed bottom-6 right-6 flex flex-col gap-2 z-50">
-            <button @click="scrollTo('top')" class="w-10 h-10 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-xl font-bold">↑</button>
-            <button @click="scrollTo('bottom')" class="w-10 h-10 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-xl font-bold">↓</button>
+            <button @click="scrollTo('top')" class="w-10 h-10 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-xl font-bold transition-all hover:bg-primary hover:text-white">↑</button>
+            <button @click="scrollTo('bottom')" class="w-10 h-10 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-xl font-bold transition-all hover:bg-primary hover:text-white">↓</button>
         </div>
     </div>
 
     <script>
-        const SERVICE_URL = 'https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/api/nexus-handler?code=__AZURE_KEY__';
+        const SERVICE_URL = 'https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/go?code=__AZURE_KEY__';
         const { createApp, ref, onMounted, watch } = Vue;
         
         createApp({
@@ -195,18 +198,15 @@
                 const renameUser = (o, n) => { if(n && !config.value[n]) { config.value[n] = config.value[o]; delete config.value[o]; }};
                 const renameGroup = (id, o, n) => { if(n && !config.value[id][n]) { config.value[id][n] = config.value[id][o]; delete config.value[id][o]; }};
                 const renameLink = (id, gn, o, n) => { if(n && !config.value[id][gn][n]) { config.value[id][gn][n] = config.value[id][gn][o]; delete config.value[id][gn][o]; }};
-                
                 const getJumpUrl = (uid) => {
-                    // 默认使用 Azure 接口生成长跳转链接
+                    // 默认长跳转地址
                     return `https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/api/nexus-handler?id=${uid}`;
                 };
-
-                const copyLink = (uid) => {
-                    navigator.clipboard.writeText(getJumpUrl(uid));
+                const copyLink = (uid) => { 
+                    navigator.clipboard.writeText(getJumpUrl(uid)); 
                     copyStatus.value[uid] = true;
-                    setTimeout(() => copyStatus.value[uid] = false, 2000);
+                    setTimeout(() => copyStatus.value[uid] = false, 2000); 
                 };
-
                 const scrollToUser = (id) => { const el = document.getElementById('user-' + id); if (el) window.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' }); };
                 const scrollTo = (t) => { if (t === 'top') window.scrollTo({ top: 0, behavior: 'smooth' }); else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); };
 
