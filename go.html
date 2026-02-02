@@ -29,7 +29,7 @@
                 return;
             }
 
-            // 2. 配置信息 (部署时 __AZURE_KEY__ 会被自动替换)
+            // 2. 配置信息 (__AZURE_KEY__ 会由 GitHub Actions 自动替换)
             const CONFIG = {
                 key: "__AZURE_KEY__",
                 endpoint: "https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/api/go"
@@ -38,24 +38,26 @@
             const targetApi = `${CONFIG.endpoint}?code=${CONFIG.key}&id=${id}`;
 
             try {
-                // 3. 尝试使用 fetch 探测最终跳转地址
-                // 这能保证中间过程对用户透明，且处理重定向
+                // 3. 尝试使用 fetch 获取跳转地址 (受 CORS 限制)
                 const response = await fetch(targetApi);
                 
                 if (response.ok) {
-                    // 成功获取，替换当前页面地址
+                    // 如果跨域允许且获取成功，直接替换地址
                     window.location.replace(response.url);
-                } else {
+                } else if (response.status === 404) {
                     document.querySelector('.text').innerText = "未找到该配置 ID";
+                } else {
+                    // 其他错误（如 401），尝试暴力跳转
+                    window.location.replace(targetApi);
                 }
             } catch (err) {
-                // 4. 如果发生跨域错误或其他异常，直接强制跳转
-                console.warn("Fetch failed, forcing direct redirect.");
+                // 4. ✨ 核心保险：如果发生跨域错误 (CORS Error)
+                // 浏览器会拦截 fetch 但不会阻止 replace。我们直接让浏览器带地址跳转。
+                console.warn("Fetch blocked by CORS, switching to direct redirect.");
                 window.location.replace(targetApi);
             }
         }
 
-        // 页面执行
         doRedirect();
     </script>
 </body>
