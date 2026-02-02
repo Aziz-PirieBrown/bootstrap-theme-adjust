@@ -46,7 +46,7 @@
 
         <div v-cloak v-if="Object.keys(config).length > 0" class="flex flex-wrap gap-2 mb-8 bg-slate-900/40 p-3 rounded-xl border border-border/50">
             <div v-for="(val, userId) in config" :key="'nav-'+userId" @click="scrollToUser(userId)"
-                 class="px-3 py-1.5 bg-slate-800 hover:bg-primary/20 border border-slate-700 hover:border-primary rounded-md cursor-pointer transition-all text-xs sm:text-sm font-mono">
+                 class="px-3 py-1.5 bg-slate-800 hover:bg-primary/20 border border-slate-700 hover:border-primary rounded-md cursor-pointer transition-all text-xs sm:text-sm font-mono text-slate-400">
                 {{ userId }}
             </div>
         </div>
@@ -67,19 +67,20 @@
                     
                     <div class="flex flex-col gap-3 mb-6">
                         <div class="flex items-center justify-between w-full">
-                            <div class="flex items-center gap-3 overflow-hidden">
-                                <div class="w-10 h-10 shrink-0 rounded bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-primary text-sm uppercase shadow-inner">
-                                    {{ userId.substring(0,2) }}
-                                </div>
-                                <input type="text" :value="userId" @change="renameUser(userId, $event.target.value)" class="bg-transparent text-xl font-bold text-white focus:outline-none truncate w-full font-mono">
+                            <div class="flex items-center gap-3 flex-1 min-w-0">
+                                <input type="text" 
+                                       :value="userId" 
+                                       @change="renameUser(userId, $event.target.value)" 
+                                       class="h-10 px-3 rounded bg-slate-800 border border-slate-700 font-bold text-primary text-sm uppercase outline-none focus:border-primary w-full max-w-[200px] shadow-inner text-center truncate"
+                                       placeholder="NAME">
                             </div>
                             <button @click="deleteUser(userId)" class="p-2 text-slate-500 hover:text-red-400 shrink-0 transition-colors">
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                         </div>
                         <div class="flex items-center justify-center gap-2 py-1">
-                            <a :href="getJumpUrl(userId)" target="_blank" class="text-xs font-mono text-blue-400 hover:text-blue-300 truncate transition-colors">🔗 ?id={{ userId }}</a>
-                            <button @click="copyEndpoint(userId)" class="p-2 text-slate-500 hover:text-primary transition-colors bg-slate-800/50 rounded-lg ml-1">
+                            <a :href="getJumpUrl(userId)" target="_blank" class="text-xs font-mono text-blue-400 hover:text-blue-300 truncate">🔗 ?id={{ userId }}</a>
+                            <button @click="copyEndpoint(userId)" class="p-1.5 text-slate-500 hover:text-primary transition-colors bg-slate-800/50 rounded ml-1">
                                 <svg class="w-4 h-4" :class="{'text-green-400': copyStatus[userId]}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path v-if="!copyStatus[userId]" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /><path v-else d="M5 13l4 4L19 7" />
                                 </svg>
@@ -90,14 +91,14 @@
                     <div class="space-y-4">
                         <div v-for="(links, groupName) in userGroups" :key="groupName" class="bg-slate-900/50 rounded-lg p-3 sm:p-4 border border-slate-800/50">
                             <div class="flex justify-between items-center mb-3 border-b border-white/5 pb-2">
-                                <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" class="bg-transparent text-xs font-bold text-slate-400 uppercase w-1/3 outline-none focus:text-primary transition-colors">
+                                <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" class="bg-transparent text-xs font-bold text-slate-400 uppercase w-1/3 outline-none focus:text-primary font-mono">
                                 <div class="flex items-center gap-2">
                                     <button @click="toggleGroupProtocol(userId, groupName)" 
                                             :class="getGroupStatusClass(links)"
-                                            class="w-12 h-6 flex items-center justify-center font-bold text-[10px] rounded border transition-all hover:bg-white/5">
+                                            class="px-2 py-0.5 font-bold text-[9px] rounded border transition-all hover:bg-white/5 uppercase">
                                         {{ getGroupStatusLabel(links) }}
                                     </button>
-                                    <button @click="addLink(userId, groupName)" :disabled="Object.keys(links).length >= 10" class="text-[11px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all">
+                                    <button @click="addLink(userId, groupName)" :disabled="Object.keys(links).length >= 10" class="text-[11px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-400 hover:text-white transition-all disabled:opacity-20">
                                         {{ Object.keys(links).length >= 10 ? 'MAX' : '+🔗' }}
                                     </button>
                                     <button @click="deleteGroup(userId, groupName)" class="text-slate-600 hover:text-red-400 px-1 font-bold text-sm">×</button>
@@ -109,9 +110,10 @@
                                     <div class="flex items-center gap-1 w-full sm:w-auto">
                                         <button @click="toggleSingleProtocol(userId, groupName, name)" 
                                                 :class="url.startsWith('https') ? 'text-primary border-primary/40' : 'text-green-500 border-green-500/50'"
-                                                class="w-12 h-6 shrink-0 text-[10px] font-bold rounded border transition-all hover:bg-white/5">
-                                            {{ url.startsWith('https') ? 'S' : 'H' }}
+                                                class="w-14 h-6 shrink-0 text-[8px] font-black rounded border transition-all hover:bg-white/5 text-center">
+                                            {{ url.startsWith('https') ? 'HTTPS' : 'HTTP' }}
                                         </button>
+                                        
                                         <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" 
                                                class="w-24 shrink-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 outline-none focus:border-primary font-mono"
                                                style="min-width: 90px;">
@@ -121,7 +123,7 @@
                                         </a>
 
                                         <button @click="copyFullUrl(url, userId, groupName, name)" 
-                                                class="p-2 text-slate-500 hover:text-primary transition-colors bg-slate-800/50 rounded-lg shrink-0">
+                                                class="p-2 text-slate-500 hover:text-primary transition-colors bg-slate-800/50 rounded shrink-0">
                                             <svg class="w-4 h-4" :class="{'text-green-400': copyItemStatus[userId+groupName+name]}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path v-if="!copyItemStatus[userId+groupName+name]" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                                 <path v-else d="M5 13l4 4L19 7" />
@@ -139,7 +141,7 @@
                                 </div>
                             </div>
                         </div>
-                        <button @click="addGroup(userId)" :disabled="Object.keys(userGroups).length >= 10" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:text-primary hover:border-primary rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-30">+ New Group</button>
+                        <button @click="addGroup(userId)" :disabled="Object.keys(userGroups).length >= 10" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:text-primary hover:border-primary rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-20">+ New Group</button>
                     </div>
                 </div>
             </div>
@@ -228,36 +230,23 @@
 
                 const getGroupStatusClass = (links) => {
                     const urls = Object.values(links);
-                    const allHttps = urls.every(u => u.startsWith('https'));
-                    const allHttp = urls.every(u => u.startsWith('http://'));
-                    if (allHttps) return 'text-primary border-primary/40';
-                    if (allHttp) return 'text-green-500 border-green-500/50';
+                    if (urls.every(u => u.startsWith('https'))) return 'text-primary border-primary/40';
+                    if (urls.every(u => u.startsWith('http://'))) return 'text-green-500 border-green-500/50';
                     return 'text-yellow-500 border-yellow-500/50';
                 };
 
                 const getGroupStatusLabel = (links) => {
                     const urls = Object.values(links);
-                    const allHttps = urls.every(u => u.startsWith('https'));
-                    const allHttp = urls.every(u => u.startsWith('http://'));
-                    return (allHttps) ? 'S' : 'H';
+                    if (urls.every(u => u.startsWith('https'))) return 'HTTPS';
+                    return 'HTTP';
                 };
 
                 const doCopy = (text, callback) => {
-                    if (navigator.clipboard && window.isSecureContext) {
-                        navigator.clipboard.writeText(text).then(callback).catch(() => {
-                            const area = document.createElement("textarea"); area.value = text;
-                            area.style.position = "fixed"; area.style.left = "-9999px";
-                            document.body.appendChild(area); area.focus(); area.select();
-                            if (document.execCommand('copy')) callback();
-                            document.body.removeChild(area);
-                        });
-                    } else {
-                        const area = document.createElement("textarea"); area.value = text;
-                        area.style.position = "fixed"; area.style.left = "-9999px";
-                        document.body.appendChild(area); area.focus(); area.select();
-                        if (document.execCommand('copy')) callback();
-                        document.body.removeChild(area);
-                    }
+                    const area = document.createElement("textarea"); area.value = text;
+                    area.style.position = "fixed"; area.style.left = "-9999px";
+                    document.body.appendChild(area); area.focus(); area.select();
+                    if (document.execCommand('copy')) callback();
+                    document.body.removeChild(area);
                 };
 
                 const copyEndpoint = (uid) => {
