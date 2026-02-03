@@ -2,311 +2,322 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        ::-webkit-scrollbar { width: 6px; }
+        /* ¹ö¶¯ÌõÑùÊ½ */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        input { transition: all 0.2s; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <div id="loader" class="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]">
-        <div class="text-center">
-            <div class="inline-block w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full spin mb-4"></div>
-            <p id="statusText" class="text-slate-400 text-sm">ÕýÔÚ¼ì²é±¾µØÆ¾Ö¤...</p>
-        </div>
-    </div>
-
-    <div id="loginLayer" class="fixed inset-0 z-40 flex items-center justify-center bg-[#0f172a]/95 backdrop-blur hidden">
-        <div class="w-full max-w-md p-8 bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl">
-            <div class="text-center mb-6">
-                <i class="fab fa-github text-4xl text-white mb-3"></i>
-                <h2 class="text-xl font-bold text-white">Nexus Á¬½ÓÑéÖ¤</h2>
-                <p class="text-xs text-slate-400 mt-2">Token ½«½ö´æ´¢ÔÚÄúä¯ÀÀÆ÷µÄ LocalStorage ÖÐ</p>
+    <div class="bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between shadow-md z-20">
+        <div class="flex items-center gap-4 flex-1 max-w-3xl">
+            <h1 class="font-bold text-xl text-sky-500 mr-4"><i class="fas fa-network-wired"></i> Nexus</h1>
+            
+            <div class="flex-1 relative group">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-key text-slate-500 group-focus-within:text-sky-400"></i>
+                </div>
+                <input type="password" id="tokenInput" 
+                    class="w-full bg-slate-900 border border-slate-600 text-slate-200 text-sm rounded-lg block pl-10 p-2.5 placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500" 
+                    placeholder="ÔÚ´ËÊäÈë GitHub Token (×Ô¶¯±£´æµ½±¾µØ)"
+                    onchange="saveTokenAndReload(this.value)">
             </div>
             
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">GitHub Personal Access Token</label>
-                    <input type="password" id="tokenInput" placeholder="Õ³Ìù ghp_... (Ô´Âë²»ÏÔÊ¾)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-sky-500 transition-colors">
-                </div>
-                <button onclick="saveTokenAndLogin()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-lg transition-colors shadow-lg shadow-sky-900/20">
-                    ÑéÖ¤²¢±£´æ
-                </button>
-            </div>
+            <button onclick="fetchConfig()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">
+                <i class="fas fa-sync-alt mr-1"></i> Ë¢ÐÂÊý¾Ý
+            </button>
+        </div>
+
+        <div class="ml-4 flex items-center gap-3">
+            <span id="statusMsg" class="text-sm text-slate-400">µÈ´ýÁ¬½Ó...</span>
+            <button onclick="saveToGithub()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2 rounded-lg shadow-lg shadow-emerald-900/20 transition-all active:scale-95">
+                <i class="fas fa-cloud-upload-alt mr-2"></i> ±£´æ¸ü¸Ä
+            </button>
         </div>
     </div>
 
-    <div id="app" class="flex-1 flex hidden">
-        <div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
-            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
-                <span class="font-bold text-sky-400">Nexus ÓÃ»§</span>
-                <button onclick="logout()" class="text-xs text-slate-500 hover:text-rose-400" title="Çå³ý±¾µØTokenÍË³ö">
-                    <i class="fas fa-sign-out-alt mr-1"></i>ÍË³ö
+    <div class="flex-1 flex overflow-hidden">
+        
+        <div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col z-10">
+            <div class="p-3 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-700">User IDs</div>
+            <div id="userList" class="flex-1 overflow-y-auto p-2 space-y-1">
+                </div>
+            <div class="p-3 border-t border-slate-700 bg-slate-800">
+                <button onclick="createUser()" class="w-full py-2 border border-dashed border-slate-600 text-slate-400 hover:text-sky-400 hover:border-sky-400 rounded text-sm transition-colors">
+                    <i class="fas fa-plus"></i> ÐÂ½¨ÓÃ»§
                 </button>
-            </div>
-            <div id="userList" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
-            <div class="p-3 border-t border-slate-700">
-                <button onclick="createUser()" class="w-full py-2 border border-dashed border-slate-600 text-slate-400 hover:text-sky-400 rounded text-sm transition-colors">+ ÐÂ½¨ÓÃ»§ ID</button>
             </div>
         </div>
 
-        <div class="flex-1 flex flex-col h-full bg-[#0f172a]">
-            <div class="h-14 border-b border-slate-700 flex items-center justify-between px-6 bg-slate-800/50 backdrop-blur-sm z-10">
-                <span id="currentIdDisplay" class="font-bold text-white">ÇëÑ¡Ôñ×ó²àÓÃ»§</span>
-                <button onclick="saveConfig()" id="saveBtn" class="px-5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all hover:scale-105">
-                    ±£´æ¸ü¸Ä
-                </button>
+        <div class="flex-1 flex flex-col bg-[#0f172a] relative">
+            <div id="welcomeScreen" class="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
+                <i class="fas fa-cube text-6xl mb-4 opacity-50"></i>
+                <p>ÇëÔÚ¶¥²¿ÊäÈë Token£¬²¢Ñ¡Ôñ×ó²àÓÃ»§</p>
             </div>
-            <div id="editorArea" class="flex-1 overflow-y-auto p-8 pb-20"></div>
+
+            <div id="editorScreen" class="hidden flex-1 flex flex-col h-full">
+                <div class="h-12 border-b border-slate-700 flex items-center px-6 bg-slate-800/30 backdrop-blur">
+                    <span class="text-slate-400 mr-2">ÕýÔÚ±à¼­:</span>
+                    <span id="currentUserId" class="font-bold text-sky-400 text-lg">...</span>
+                </div>
+                
+                <div id="editorContainer" class="flex-1 overflow-y-auto p-8 space-y-6 pb-32">
+                    </div>
+            </div>
         </div>
     </div>
 
     <script>
-        // === ÅäÖÃÇø (YML»á×Ô¶¯Ìæ»») ===
-        const OWNER = "__REPO_OWNER__";
-        const REPO = "__REPO_NAME__";
-        const PATH = "config.json";
-        
-        // === È«¾Ö±äÁ¿ ===
-        let configData = {};
+        // ==========================================
+        //  ÅäÖÃÇø (YML ×Ô¶¯Ìæ»»)
+        // ==========================================
+        const CONFIG = {
+            owner: "__REPO_OWNER__",
+            repo: "__REPO_NAME__",
+            path: "config.json"
+        };
+        const TOKEN_KEY = 'nexus_gh_pat_v2'; // ±¾µØ´æ´¢ Key
+
+        // ==========================================
+        //  ºËÐÄÂß¼­
+        // ==========================================
+        let appData = {};
         let currentSha = "";
         let activeId = null;
-        // ¹Ø¼ü£º´Ó±¾µØ»º´æ¶ÁÈ¡ Token
-        let myToken = localStorage.getItem('nexus_gh_token');
+        let ghToken = localStorage.getItem(TOKEN_KEY);
 
-        // === 1. ³õÊ¼»¯³ÌÐò ===
-        (async function init() {
-            const loader = document.getElementById('loader');
-            const loginLayer = document.getElementById('loginLayer');
-            const status = document.getElementById('statusText');
-
-            // Èç¹û±¾µØÃ»ÓÐ Token£¬ÏÔÊ¾µÇÂ¼¿ò
-            if (!myToken) {
-                loader.classList.add('hidden');
-                loginLayer.classList.remove('hidden');
-                return;
-            }
-
-            // Èç¹ûÓÐ Token£¬³¢ÊÔÀ­È¡Êý¾Ý
-            try {
-                status.innerText = "ÕýÔÚ´Ó GitHub Í¬²½...";
-                await fetchData(); // À­È¡Êý¾Ý
-                
-                // ³É¹¦ºóÏÔÊ¾Ö÷½çÃæ
-                loader.classList.add('hidden');
-                document.getElementById('app').classList.remove('hidden');
-                renderSidebar();
-
-                // URL ×Ô¶¯Ñ¡ÖÐÂß¼­
-                const urlId = new URLSearchParams(window.location.search).get('id');
-                if(urlId && configData[urlId]) selectUser(urlId);
-
-            } catch (e) {
-                // Èç¹û Token Ê§Ð§»òÍøÂç´íÎó
-                console.error(e);
-                if(e.message.includes('401') || e.message.includes('Bad credentials')) {
-                    alert("±¾µØ±£´æµÄ Token ËÆºõÒÑÊ§Ð§£¬ÇëÖØÐÂÊäÈë¡£");
-                    logout(); // Çå³ý¾É Token ²¢Ë¢ÐÂ
-                } else {
-                    status.innerText = "Á¬½Ó´íÎó: " + e.message;
-                    status.classList.add('text-rose-500');
-                }
+        // 1. ³õÊ¼»¯£º×Ô¶¯Ìî³ä Token ²¢¼ÓÔØ
+        (function init() {
+            const input = document.getElementById('tokenInput');
+            if (ghToken) {
+                input.value = ghToken; // Ìî³äÊäÈë¿ò
+                fetchConfig();         // ×Ô¶¯À­È¡
             }
         })();
 
-        // === 2. ºËÐÄ API ²Ù×÷ ===
-
-        // ÑéÖ¤²¢±£´æ Token (µÚÒ»´ÎÓÃÊ±´¥·¢)
-        async function saveTokenAndLogin() {
-            const input = document.getElementById('tokenInput');
-            const val = input.value.trim();
-            if (!val.startsWith('gh')) return alert("Token ¸ñÊ½¿´ÆðÀ´²»¶Ô (Í¨³£ÒÔ ghp_ ¿ªÍ·)");
-            
-            // ´æÈë±¾µØ
-            localStorage.setItem('nexus_gh_token', val);
-            myToken = val;
-            
-            // Ë¢ÐÂÒ³Ãæ´¥·¢ init()
-            location.reload();
-        }
-
-        // ÍË³ö (Çå³ý±¾µØ Token)
-        function logout() {
-            if(confirm("È·¶¨ÍË³öÂð£¿Õâ½«Çå³ý±¾µØ±£´æµÄ Token¡£")) {
-                localStorage.removeItem('nexus_gh_token');
-                location.reload();
+        // 2. Token ±£´æÂß¼­
+        function saveTokenAndReload(val) {
+            val = val.trim();
+            if (val) {
+                localStorage.setItem(TOKEN_KEY, val);
+                ghToken = val;
+                fetchConfig(); // Token ±äÁË£¬ÖØÐÂÀ­È¡
             }
         }
 
-        // À­È¡Êý¾Ý
-        async function fetchData() {
-            const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}?t=${Date.now()}`;
-            const res = await fetch(url, { headers: { 'Authorization': `token ${myToken}` } });
-
-            if (res.status === 404) {
-                configData = {}; // ÐÂÎÄ¼þ
-                return;
-            }
-            if (!res.ok) throw new Error(`API Error ${res.status}`);
-
-            const json = await res.json();
-            currentSha = json.sha;
-            // UTF8 ½âÂë
-            configData = JSON.parse(decodeURIComponent(escape(atob(json.content))));
-        }
-
-        // ±£´æÊý¾Ý
-        async function saveConfig() {
-            const btn = document.getElementById('saveBtn');
-            const originalText = btn.innerText;
-            btn.innerText = "ÕýÔÚÍÆËÍ...";
-            btn.disabled = true;
-            btn.classList.add('opacity-75');
-
+        // 3. ´Ó GitHub »ñÈ¡Êý¾Ý
+        async function fetchConfig() {
+            if (!ghToken) return showStatus("ÇëÊäÈë Token", "warn");
+            
+            showStatus("ÕýÔÚ¼ÓÔØÅäÖÃ...", "loading");
             try {
-                // ±àÂë
-                const contentStr = JSON.stringify(configData, null, 2);
+                const url = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}?t=${Date.now()}`;
+                const res = await fetch(url, { headers: { 'Authorization': `token ${ghToken}` } });
+                
+                if (res.status === 404) {
+                    appData = {}; 
+                    currentSha = null;
+                    showStatus("ÐÂ½¨ÅäÖÃÎÄ¼þ", "success");
+                } else if (!res.ok) {
+                    throw new Error("Token ÎÞÐ§»òÍøÂç´íÎó");
+                } else {
+                    const json = await res.json();
+                    currentSha = json.sha;
+                    // UTF-8 ½âÂë·ÀÖ¹ÂÒÂë
+                    appData = JSON.parse(decodeURIComponent(escape(atob(json.content))));
+                    showStatus("Êý¾ÝÒÑÍ¬²½", "success");
+                }
+                
+                renderSidebar();
+                
+                // ±£³Öµ±Ç°Ñ¡ÖÐµÄÓÃ»§½çÃæ
+                if (activeId && appData[activeId]) {
+                    renderEditor(activeId);
+                } else {
+                    // Èç¹û URL ÓÐ id ²ÎÊý£¬×Ô¶¯Ñ¡ÖÐ
+                    const urlId = new URLSearchParams(window.location.search).get('id');
+                    if (urlId && appData[urlId]) selectUser(urlId);
+                }
+
+            } catch (e) {
+                console.error(e);
+                showStatus("Á¬½ÓÊ§°Ü£¬Çë¼ì²é Token", "error");
+            }
+        }
+
+        // 4. ±£´æµ½ GitHub
+        async function saveToGithub() {
+            if (!ghToken) return alert("ÇëÏÈÊäÈë Token");
+            if (!confirm("È·¶¨Òª±£´æ²¢·¢²¼¸ü¸ÄÂð£¿")) return;
+
+            showStatus("ÕýÔÚÍÆËÍ...", "loading");
+            try {
+                const contentStr = JSON.stringify(appData, null, 2);
                 const contentB64 = btoa(unescape(encodeURIComponent(contentStr)));
 
-                const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`, {
+                const body = {
+                    message: "Update via Nexus Admin",
+                    content: contentB64,
+                    sha: currentSha
+                };
+
+                const res = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}`, {
                     method: 'PUT',
                     headers: { 
-                        'Authorization': `token ${myToken}`,
-                        'Content-Type': 'application/json'
+                        'Authorization': `token ${ghToken}`,
+                        'Content-Type': 'application/json' 
                     },
-                    body: JSON.stringify({
-                        message: "Update config via Nexus Admin",
-                        content: contentB64,
-                        sha: currentSha
-                    })
+                    body: JSON.stringify(body)
                 });
 
-                if(!res.ok) throw new Error("±£´æÊ§°Ü");
-                const data = await res.json();
-                currentSha = data.content.sha; // ¸üÐÂ SHA ±ÜÃâ³åÍ»
-
-                btn.innerText = "±£´æ³É¹¦!";
-                btn.classList.replace('bg-emerald-600', 'bg-sky-600');
-                setTimeout(() => { 
-                    btn.innerText = originalText; 
-                    btn.classList.replace('bg-sky-600', 'bg-emerald-600');
-                    btn.disabled = false;
-                    btn.classList.remove('opacity-75');
-                }, 2000);
+                if (!res.ok) throw new Error("±£´æÊ§°Ü");
+                
+                const resData = await res.json();
+                currentSha = resData.content.sha; // ¸üÐÂ SHA
+                showStatus("±£´æ³É¹¦£¡", "success");
 
             } catch (e) {
                 alert("±£´æÊ§°Ü: " + e.message);
-                btn.innerText = originalText;
-                btn.disabled = false;
-                btn.classList.remove('opacity-75');
+                showStatus("±£´æÊ§°Ü", "error");
             }
         }
 
-        // === 3. UI äÖÈ¾Âß¼­ (±£³ÖÔ­Ñù) ===
+        // ==========================================
+        //  UI äÖÈ¾Óë½»»¥
+        // ==========================================
+        
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMsg');
+            el.innerText = msg;
+            el.className = "text-sm transition-colors " + 
+                (type === 'error' ? 'text-rose-400' : 
+                 type === 'success' ? 'text-emerald-400' : 
+                 type === 'warn' ? 'text-amber-400' : 'text-slate-400');
+        }
 
         function renderSidebar() {
             const list = document.getElementById('userList');
             list.innerHTML = '';
-            Object.keys(configData).forEach(id => {
+            Object.keys(appData).forEach(id => {
+                const isActive = id === activeId;
                 const div = document.createElement('div');
-                div.className = `px-3 py-2 cursor-pointer rounded flex justify-between group transition-colors ${id === activeId ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`;
+                div.className = `px-3 py-2 cursor-pointer rounded flex justify-between items-center group transition-colors mb-1 ${isActive ? 'bg-sky-600 text-white' : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'}`;
                 div.onclick = () => selectUser(id);
-                div.innerHTML = `<span class="truncate font-medium">${id}</span> <button onclick="deleteUser('${id}', event)" class="opacity-0 group-hover:opacity-100 hover:text-rose-300 transition-all px-2"><i class="fas fa-trash-alt text-xs"></i></button>`;
+                div.innerHTML = `
+                    <span class="truncate font-medium">${id}</span>
+                    <i onclick="deleteUser('${id}', event)" class="fas fa-trash-alt text-xs opacity-0 group-hover:opacity-100 hover:text-rose-300 p-1 transition-opacity"></i>
+                `;
                 list.appendChild(div);
             });
         }
 
         function selectUser(id) {
             activeId = id;
-            document.getElementById('currentIdDisplay').innerText = id;
-            renderSidebar();
-            renderEditor();
+            document.getElementById('welcomeScreen').classList.add('hidden');
+            document.getElementById('editorScreen').classList.remove('hidden');
+            document.getElementById('currentUserId').innerText = id;
+            renderSidebar(); // Ë¢ÐÂ¸ßÁÁ
+            renderEditor(id);
         }
 
-        function renderEditor() {
-            const container = document.getElementById('editorArea');
+        function renderEditor(id) {
+            const container = document.getElementById('editorContainer');
             container.innerHTML = '';
-            if(!activeId) return;
+            const userData = appData[id];
 
-            const userData = configData[activeId];
-            
-            for(const group in userData) {
+            // ±éÀú·Ö×é
+            for (const [groupName, links] of Object.entries(userData)) {
                 const groupEl = document.createElement('div');
-                groupEl.className = "mb-6 bg-slate-800 p-5 rounded-xl border border-slate-700/50 shadow-sm relative group/card";
+                groupEl.className = "bg-slate-800 border border-slate-700 rounded-xl p-5 relative group/card shadow-sm";
                 
                 let linksHtml = '';
-                for(const linkName in userData[group]) {
+                for (const [linkName, url] of Object.entries(links)) {
                     linksHtml += `
                         <div class="flex gap-3 mb-3 items-center">
-                            <input class="bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded px-3 py-2 w-1/3 focus:border-sky-500 focus:outline-none transition-colors" value="${linkName}" onchange="updateKey('${group}', '${linkName}', this.value)" placeholder="Ãû³Æ">
-                            <input class="bg-slate-900 border border-slate-700 text-sky-400 text-sm rounded px-3 py-2 flex-1 focus:border-sky-500 focus:outline-none transition-colors font-mono" value="${userData[group][linkName]}" onchange="updateVal('${group}', '${linkName}', this.value)" placeholder="https://...">
-                            <button onclick="delLink('${group}', '${linkName}')" class="text-slate-500 hover:text-rose-500 w-8 h-8 flex items-center justify-center rounded hover:bg-slate-700 transition-colors"><i class="fas fa-times"></i></button>
+                            <input type="text" value="${linkName}" onchange="updateKey('${groupName}', '${linkName}', this.value)" 
+                                class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm w-1/3 text-slate-200 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-slate-600" placeholder="Á´½ÓÃû">
+                            <input type="text" value="${url}" onchange="updateVal('${groupName}', '${linkName}', this.value)" 
+                                class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm flex-1 text-sky-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 font-mono placeholder-slate-600" placeholder="URL">
+                            <button onclick="deleteLink('${groupName}', '${linkName}')" class="text-slate-600 hover:text-rose-500 px-2 transition-colors"><i class="fas fa-times"></i></button>
                         </div>
                     `;
                 }
 
                 groupEl.innerHTML = `
                     <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-700/50">
-                        <input class="bg-transparent font-bold text-lg text-slate-100 border-b border-transparent hover:border-slate-600 focus:border-sky-500 focus:outline-none transition-colors w-48" value="${group}" onchange="renameGroup('${group}', this.value)">
-                        <button onclick="delGroup('${group}')" class="text-xs text-slate-500 hover:text-rose-400 border border-slate-700 px-2 py-1 rounded opacity-0 group-hover/card:opacity-100 transition-all">É¾³ý·Ö×é</button>
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-folder text-slate-500"></i>
+                            <input type="text" value="${groupName}" onchange="renameGroup('${groupName}', this.value)" 
+                                class="bg-transparent border-b border-transparent hover:border-slate-600 focus:border-sky-500 focus:outline-none text-lg font-bold text-slate-100 w-48 transition-all">
+                        </div>
+                        <button onclick="deleteGroup('${groupName}')" class="text-xs text-slate-500 hover:text-rose-400 border border-slate-700 hover:border-rose-400 px-2 py-1 rounded opacity-0 group-hover/card:opacity-100 transition-all">É¾³ý·Ö×é</button>
                     </div>
-                    ${linksHtml}
-                    <button onclick="addLink('${group}')" class="text-xs font-bold text-sky-500 hover:text-sky-400 mt-2 flex items-center py-1 px-1 opacity-70 hover:opacity-100 transition-opacity"><i class="fas fa-plus-circle mr-1"></i>Ìí¼ÓÁ´½Ó</button>
+                    <div>${linksHtml}</div>
+                    <button onclick="addLink('${groupName}')" class="mt-2 text-xs font-bold text-sky-500 hover:text-sky-400 flex items-center py-1 opacity-80 hover:opacity-100 transition-opacity">
+                        <i class="fas fa-plus-circle mr-1"></i> Ìí¼ÓÁ´½Ó
+                    </button>
                 `;
                 container.appendChild(groupEl);
             }
-            
+
+            // µ×²¿£ºÌí¼Ó·Ö×é°´Å¥
             const addGroupBtn = document.createElement('button');
-            addGroupBtn.className = "w-full py-4 border border-dashed border-slate-700 text-slate-500 hover:text-sky-400 rounded-xl hover:border-sky-500 hover:bg-slate-800/50 transition-all flex items-center justify-center gap-2";
-            addGroupBtn.innerHTML = "<i class='fas fa-folder-plus'></i> <span>Ìí¼ÓÐÂ·Ö×é</span>";
+            addGroupBtn.className = "w-full py-4 border border-dashed border-slate-700 text-slate-500 hover:text-sky-400 rounded-xl hover:border-sky-500 transition-all flex items-center justify-center gap-2 hover:bg-slate-800/50";
+            addGroupBtn.innerHTML = "<i class='fas fa-layer-group'></i> <span>Ìí¼ÓÐÂ·Ö×é (Group)</span>";
             addGroupBtn.onclick = () => {
-                const name = prompt("ÐÂ·Ö×éÃû³Æ:");
-                if(name && !configData[activeId][name]) {
-                    configData[activeId][name] = {};
-                    renderEditor();
+                const name = prompt("·Ö×éÃû³Æ:");
+                if (name && !appData[id][name]) {
+                    appData[id][name] = {};
+                    renderEditor(id);
                 }
             };
             container.appendChild(addGroupBtn);
         }
 
-        // === 4. Êý¾Ý²Ù×÷ (¸¨Öúº¯Êý) ===
-        function updateVal(g, k, v) { configData[activeId][g][k] = v; }
-        function updateKey(g, oldK, newK) {
-            if(!newK || oldK === newK) return;
-            const v = configData[activeId][g][oldK];
-            delete configData[activeId][g][oldK];
-            configData[activeId][g][newK] = v;
-        }
-        function addLink(g) { configData[activeId][g]["New Link"] = ""; renderEditor(); }
-        function delLink(g, k) { delete configData[activeId][g][k]; renderEditor(); }
-        function renameGroup(oldN, newN) {
-            if(!newN || oldN === newN) return;
-            const d = configData[activeId][oldN];
-            delete configData[activeId][oldN];
-            configData[activeId][newN] = d;
-            renderEditor();
-        }
-        function delGroup(g) { if(confirm("É¾³ý·Ö×é?")) { delete configData[activeId][g]; renderEditor(); } }
+        // ==========================================
+        //  Êý¾Ý²Ù×÷ (CRUD)
+        // ==========================================
         function createUser() {
-            const id = prompt("ÐÂ ID (×ÖÄ¸/Êý×Ö):");
-            if(id && !configData[id]) { configData[id] = {"Ä¬ÈÏ·Ö×é":{}}; selectUser(id); }
+            const id = prompt("ÐÂÓÃ»§ ID:");
+            if (id && !appData[id]) {
+                appData[id] = { "Links": {} };
+                selectUser(id);
+            }
         }
         function deleteUser(id, e) {
             e.stopPropagation();
-            if(confirm("É¾³ýÓÃ»§ " + id + "?")) {
-                delete configData[id];
-                if(activeId === id) { activeId = null; document.getElementById('editorArea').innerHTML = ''; }
+            if (confirm(`É¾³ýÓÃ»§ ${id} ?`)) {
+                delete appData[id];
+                if (activeId === id) { activeId = null; document.getElementById('editorScreen').classList.add('hidden'); document.getElementById('welcomeScreen').classList.remove('hidden'); }
                 renderSidebar();
             }
         }
+        function updateVal(group, key, val) { appData[activeId][group][key] = val; }
+        function updateKey(group, oldKey, newKey) {
+            if (!newKey || oldKey === newKey) return;
+            const val = appData[activeId][group][oldKey];
+            delete appData[activeId][group][oldKey];
+            appData[activeId][group][newKey] = val;
+        }
+        function deleteLink(group, key) { delete appData[activeId][group][key]; renderEditor(activeId); }
+        function addLink(group) { appData[activeId][group]["ÐÂÁ´½Ó"] = ""; renderEditor(activeId); }
+        function renameGroup(oldName, newName) {
+            if (!newName || oldName === newName) return;
+            const content = appData[activeId][oldName];
+            delete appData[activeId][oldName];
+            appData[activeId][newName] = content;
+            renderEditor(activeId);
+        }
+        function deleteGroup(group) { if (confirm("É¾³ý·Ö×é?")) { delete appData[activeId][group]; renderEditor(activeId); } }
+
     </script>
 </body>
 </html>
