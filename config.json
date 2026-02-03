@@ -1,8 +1,7 @@
 {
   "me": {
     "Group 1": {
-      "Link 1": "http://192.168.130.18:34832/wewewe/",
-      "Link 2": "https://"
+      "Link 1": "http://192.168.130.18:34832/wewewe/"
     },
     "Group 2": {
       "Link 1": "https://144154564"
@@ -10,9 +9,6 @@
     "Group 3": {
       "Link 1": "https://123123",
       "Link 2": "https://ASDFSFDSFD"
-    },
-    "Group 4": {
-      "Link 1": "https://"
     }
   },
   "mee": {
