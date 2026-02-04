@@ -1,15 +1,12 @@
 {
   "me": {
     "Group 1": {
-      "Link 1": "http://192.168.130.183:34832/board/"
-    
+      "Link 1": "http://192.168.130.18:34832/board/"
     }
   },
-  
   "mee": {
     "Group 2": {
       "Link 1": "http://192.168.130.183:34832/board/"
-    
     },
     "Group SAFDASFAS1": {
       "Link 1": "https://楼",
@@ -37,11 +34,6 @@
     "Group 3": {
       "Link 1": "https://123123",
       "Link 2": "https://ASDFSFDSFD"
-    }
-  },
-  "me": {
-    "Group 1": {
-      "Link 1": "http://192.168.130.18:34832/board/"
     }
   }
 }
