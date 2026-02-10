@@ -1,0 +1,92 @@
+name: Azure Static Web Apps CI/CD (Auto-Injection Mode)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+  # ±£³Ö±£»îÈÎÎñ£¬·ÀÖ¹ Function ½øÈëÉî¶ÈÐÝÃß
+  schedule:
+    - cron: '*/10 * * * *'
+
+jobs:
+  # ÈÎÎñ 1£º±£»îÈÎÎñ
+  keep_alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Heartbeat to Azure Function
+        run: |
+          curl -s "https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/go?code=${{ secrets.AZURE_FUNCTION_KEY }}&action=get" > /dev/null
+          echo "Heartbeat sent at $(date)"
+
+  # ÈÎÎñ 2£º¹¹½¨Óë²¿Êð
+  build_and_deploy_job:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy Job
+    permissions:
+       id-token: write
+       contents: read
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          lfs: false
+
+      # ? ºËÐÄÐÞ¸´£ºÈ·±£ goo.html ºÍ manage.html Í¬Ê±»ñµÃÂ·¾¶×¢Èë
+      - name: Inject Info into HTML Files
+        run: |
+          # 1. ×¢ÈëÔ­ÓÐ index ºÍ go µÄ Key
+          [ -f "index.html" ] && sed -i "s/__AZURE_KEY__/${{ secrets.AZURE_FUNCTION_KEY }}/g" index.html
+          [ -f "go.html" ] && sed -i "s/__AZURE_KEY__/${{ secrets.AZURE_FUNCTION_KEY }}/g" go.html
+          
+          # 2. ±éÀú´¦ÀíÐèÒª API Ö±Á¬µÄÒ³Ãæ
+          # È·±£ËùÓÐÕ¼Î»·û __REPO_OWNER__ ºÍ __REPO_NAME__ ±»Ìæ»»
+          for file in manage.html goo.html; do
+            if [ -f "$file" ]; then
+              echo "Injecting repo info into $file..."
+              sed -i "s/__REPO_OWNER__/${{ github.repository_owner }}/g" "$file"
+              sed -i "s/__REPO_NAME__/${{ github.event.repository.name }}/g" "$file"
+            fi
+          done
+          echo "Injection process finished."
+
+      - name: Install OIDC Client
+        run: npm install @actions/core@1.6.0 @actions/http-client
+        
+      - name: Get Id Token
+        uses: actions/github-script@v6
+        id: idtoken
+        with:
+           script: |
+               const coredemo = require('@actions/core')
+               return await coredemo.getIDToken()
+           result-encoding: string
+
+      - name: Build And Deploy
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_SEA_0466B3200 }}
+          action: "upload"
+          app_location: "/" 
+          api_location: "" 
+          output_location: "" 
+          skip_app_build: true      
+          github_id_token: ${{ steps.idtoken.outputs.result }}
+
+  # ÈÎÎñ 3£ºÇåÀíÈÎÎñ
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_SEA_0466B3200 }}
+          action: "close"
