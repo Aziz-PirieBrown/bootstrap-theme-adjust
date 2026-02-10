@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Nexus 极速跳转</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div id="loader" class="text-center">
+        <div class="inline-block w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full spin mb-4"></div>
+        <p class="text-slate-400">正在获取最新配置...</p>
+    </div>
+
+    <div id="app" class="max-w-md w-full hidden">
+        <h2 class="text-3xl font-bold text-white text-center mb-8">Hello, <span id="userName" class="text-sky-400">User</span></h2>
+        <div id="groupsContainer"></div>
+    </div>
+
+    <script>
+        (async function() {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            const loader = document.getElementById('loader');
+            const app = document.getElementById('app');
+
+            // 自动注入变量 (由 .yml 自动填充)
+            const owner = "__REPO_OWNER__";
+            const repo = "__REPO_NAME__";
+            const path = "config.json";
+
+            if (!id) {
+                window.location.replace("./index.html");
+                return;
+            }
+
+            // 尝试读取 manage.html 存下的 Token
+            const token = localStorage.getItem('gh_pat');
+
+            async function fetchConfig() {
+                try {
+                    // 1. 尝试直接请求 GitHub API 获取实时数据 (跳过部署等待)
+                    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?v=${Date.now()}`;
+                    const headers = token ? { 'Authorization': `token ${token}` } : {};
+                    
+                    const res = await fetch(apiUrl, { headers });
+                    if (!res.ok) throw new Error("API 请求失败");
+                    
+                    const data = await res.json();
+                    // 解码 Base64 内容
+                    return JSON.parse(decodeURIComponent(escape(atob(data.content))));
+                } catch (e) {
+                    console.warn("API 实时读取失败，正在尝试读取本地缓存文件...", e);
+                    // 2. 降级方案：读取当前服务器上的静态文件 (可能存在 30s 延迟)
+                    const fallback = await fetch(`./config.json?v=${Date.now()}`);
+                    return await fallback.json();
+                }
+            }
+
+            try {
+                const config = await fetchConfig();
+                const userData = config[id];
+
+                if (!userData) {
+                    loader.innerHTML = `<p class="text-rose-500 font-bold">未找到 ID: ${id}</p>`;
+                    return;
+                }
+
+                // 提取有效链接
+                let allLinks = [];
+                for (let groupName in userData) {
+                    const groupItems = userData[groupName];
+                    for (let linkName in groupItems) {
+                        const url = groupItems[linkName];
+                        if (url && (url.startsWith('http'))) {
+                            allLinks.push({ group: groupName, name: linkName, url: url });
+                        }
+                    }
+                }
+
+                if (allLinks.length === 1) {
+                    // 🚀 单链接：秒跳
+                    window.location.replace(allLinks[0].url);
+                } else if (allLinks.length > 1) {
+                    // 📋 多链接：渲染 UI
+                    renderUI(id, userData);
+                } else {
+                    loader.innerHTML = `<p class="text-slate-500">配置内容为空</p>`;
+                }
+
+            } catch (err) {
+                loader.innerHTML = `<p class="text-rose-400">系统错误: ${err.message}</p>`;
+            }
+
+            function renderUI(userId, groups) {
+                document.getElementById('userName').innerText = userId;
+                const container = document.getElementById('groupsContainer');
+                let html = '';
+                for (const [groupName, links] of Object.entries(groups)) {
+                    const validLinks = Object.entries(links).filter(([_, url]) => url && url.startsWith('http'));
+                    if (validLinks.length === 0) continue;
+                    let linksHtml = validLinks.map(([name, url]) => `
+                        <a href="${url}" class="flex justify-between px-5 py-4 border border-slate-700 rounded-xl bg-slate-800 hover:border-sky-500 text-slate-200 transition-all mb-3 group">
+                            <span>${name}</span>
+                            <span class="text-slate-500 group-hover:text-sky-400">→</span>
+                        </a>
+                    `).join('');
+                    html += `<div class="mb-6"><h3 class="text-xs font-bold text-slate-500 uppercase mb-3 tracking-widest">${groupName}</h3><div class="flex flex-col">${linksHtml}</div></div>`;
+                }
+                container.innerHTML = html;
+                loader.classList.add('hidden');
+                app.classList.remove('hidden');
+            }
+        })();
+    </script>
+</body>
+</html>
