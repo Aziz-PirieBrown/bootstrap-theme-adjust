@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script>
+        // 1. 抢在页面渲染前执行逻辑
+        (function() {
+            const id = new URLSearchParams(window.location.search).get('id');
+            if (!id) { window.location.replace("./index.html"); return; }
+
+            const key = "__AZURE_KEY__";
+            // 2. 直接构造后端地址
+            const target = `https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/go?code=${key}&id=${id}`;
+
+            // 3. 极致加速：不再 fetch 探测，直接利用浏览器的重定向处理
+            // 这种方式不需要等待后端返回 JSON，后端返回 302 时浏览器会瞬间跟进
+            window.location.replace(target);
+        })();
+    </script>
+    <title>Loading...</title>
+    <style>
+        /* 仅保留最基础背景色，防止闪白眼 */
+        body { background: #0f172a; }
+    </style>
+</head>
+<body></body>
+</html>
