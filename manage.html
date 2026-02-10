@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS | GitHub Link Manager</title>
+    <style>
+        [v-cloak] { display: none !important; }
+        body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; margin: 0; }
+        .init-loading { color: #38bdf8; font-family: monospace; font-size: 12px; text-transform: uppercase; }
+        html { scroll-behavior: smooth; }
+        
+        /* ¹ö¶¯ÌõÃÀ»¯ */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        input { 
+            border: none !important; 
+            outline: none !important; 
+            box-shadow: none !important; 
+            background-color: transparent;
+        }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { bg: '#0f172a', card: '#1e293b', border: '#334155', primary: '#38bdf8' } } }
+        }
+    </script>
+</head>
+<body class="min-h-screen pb-20 relative text-slate-300">
+    <div id="app" class="max-w-6xl mx-auto p-4 md:p-8">
+        
+        <header class="bg-card border border-border rounded-xl p-6 mb-6 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <div class="w-3 h-3 rounded-full transition-colors duration-500 shrink-0 shadow-[0_0_10px_rgba(0,0,0,0.5)]" :class="statusColor"></div>
+                <div class="flex-1">
+                    <h1 class="text-xl sm:text-2xl font-bold text-white uppercase tracking-tight">NEXUS <span class="text-primary">GIT</span></h1>
+                    <div class="text-[10px] sm:text-xs font-mono uppercase tracking-tighter flex gap-2">
+                        <span class="text-slate-400">REPO_MODE |</span>
+                        <span class="init-loading" :class="{'text-green-400': statusText==='Synced', 'text-yellow-400': statusText && statusText.includes('Wait')}">
+                            {{ statusText }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 w-full md:max-w-md flex items-center gap-2 bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 focus-within:border-primary/50 transition-colors">
+                <i class="fas fa-key text-slate-500 ml-2 text-xs"></i>
+                <input type="password" v-model="tokenInput" @change="saveToken" placeholder="GitHub Token (ÊäÈëÒ»´Î×Ô¶¯±£´æ)" class="w-full bg-transparent text-sm text-white px-2 placeholder-slate-600 font-mono">
+            </div>
+
+            <button v-cloak @click="manualSync" :disabled="isSaving || !tokenInput" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm shadow-lg shrink-0 flex items-center gap-2">
+                <i class="fas" :class="isSaving ? 'fa-spinner fa-spin' : 'fa-sync-alt'"></i>
+                {{ isSaving ? 'SAVING...' : 'SYNC' }}
+            </button>
+        </header>
+
+        <div v-cloak v-if="Object.keys(config).length > 0" class="flex flex-wrap gap-2 mb-8 bg-slate-900/40 p-3 rounded-xl border border-border/50">
+            <div v-for="(val, userId) in config" :key="'nav-'+userId" @click="scrollToUser(userId)"
+                 class="px-3 py-1.5 bg-slate-800 hover:bg-primary/20 border border-slate-700 hover:border-primary rounded-md cursor-pointer transition-all text-xs sm:text-sm font-mono text-slate-400 flex items-center gap-2">
+                <i class="fas fa-user-circle text-xs opacity-50"></i> {{ userId }}
+            </div>
+        </div>
+
+        <div v-cloak v-if="Object.keys(config).length > 0" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-4">
+                <div class="bg-card border border-border rounded-xl p-6 shadow-lg sticky top-8">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-widest flex items-center gap-2">
+                        <i class="fas fa-plus-circle"></i> New Identity
+                    </h3>
+                    <div class="flex gap-2">
+                        <input v-model="newUserId" @keyup.enter="addUser" type="text" placeholder="User ID" class="w-full bg-slate-900 rounded-lg px-3 py-2 text-sm text-white font-mono">
+                        <button @click="addUser" class="bg-slate-700 hover:bg-slate-600 px-4 rounded-lg font-bold transition-all text-white">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 space-y-6">
+                <div v-for="(userGroups, userId) in config" :key="userId" :id="'user-'+userId" class="bg-card border border-border rounded-xl p-6 shadow-lg relative transition-all mb-6">
+                    
+                    <div class="flex flex-col gap-4 mb-6">
+                        <div class="flex items-center justify-between w-full border-b border-white/5 pb-2">
+                            <div class="flex items-center gap-3 flex-1 min-w-0">
+                                <i class="fas fa-id-badge text-slate-500 text-xl"></i>
+                                <input type="text" :value="userId" @change="renameUser(userId, $event.target.value)" 
+                                       class="h-10 px-2 rounded bg-slate-800 font-bold text-primary text-sm uppercase w-full max-w-[240px] text-left truncate border-none shadow-inner"
+                                       placeholder="NAME">
+                            </div>
+                            <button @click="deleteUser(userId)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-full transition-all">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="flex flex-col items-center justify-center gap-2 py-4 bg-slate-900/30 rounded-xl border border-white/5 border-dashed">
+                            <a :href="getJumpUrl(userId)" target="_blank" class="text-lg font-mono text-blue-400 hover:text-blue-300 transition-all transform hover:scale-105 flex items-center gap-2 px-6 py-2 bg-blue-500/10 rounded-full border border-blue-500/20 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/20">
+                                <i class="fas fa-rocket"></i>
+                                <span>?id={{ userId }}</span>
+                            </a>
+                            <button @click="copyEndpoint(userId)" class="text-xs text-slate-500 hover:text-primary transition-colors flex items-center gap-1 mt-1">
+                                <i class="fas" :class="copyStatus[userId] ? 'fa-check text-green-400' : 'fa-copy'"></i> 
+                                {{ copyStatus[userId] ? 'Copied' : 'Copy Link' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div v-for="(links, groupName) in userGroups" :key="groupName" class="bg-slate-900/50 rounded-lg p-3 sm:p-4 border border-slate-800/20 hover:border-slate-700 transition-colors">
+                            <div class="flex justify-between items-center mb-3 border-b border-white/5 pb-2">
+                                <div class="flex items-center gap-2 flex-1">
+                                    <i class="fas fa-folder text-slate-600 text-xs"></i>
+                                    <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" 
+                                           class="bg-transparent text-xs font-bold text-slate-400 uppercase w-full outline-none focus:text-primary font-mono placeholder-slate-600">
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button @click="toggleGroupProtocol(userId, groupName)" 
+                                            :class="getGroupStatusClass(links)"
+                                            class="px-2 py-0.5 font-bold text-[9px] rounded border transition-all hover:bg-white/5 uppercase">
+                                        {{ getGroupStatusLabel(links) }}
+                                    </button>
+                                    <button @click="addLink(userId, groupName)" :disabled="Object.keys(links).length >= 20" class="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400 hover:text-white transition-all disabled:opacity-20 flex items-center gap-1">
+                                        <i class="fas fa-plus"></i> Link
+                                    </button>
+                                    <button @click="deleteGroup(userId, groupName)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-rose-400 transition-colors">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <div v-for="(url, name) in links" :key="name" class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-1 group/item">
+                                    <div class="flex items-center gap-1 w-full sm:w-auto">
+                                        <button @click="toggleSingleProtocol(userId, groupName, name)" 
+                                                :class="url.startsWith('https') ? 'text-primary border-primary/40' : 'text-green-500 border-green-500/50'"
+                                                class="w-14 h-6 shrink-0 text-[8px] font-black rounded border transition-all hover:bg-white/5 text-center">
+                                            {{ url.startsWith('https') ? 'HTTPS' : 'HTTP' }}
+                                        </button>
+                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" 
+                                               class="w-24 shrink-0 bg-slate-900 rounded px-2 py-1 text-xs text-slate-300 font-mono focus:text-primary"
+                                               style="min-width: 90px;">
+                                        <a :href="url" target="_blank" class="text-slate-600 hover:text-primary flex items-center shrink-0 w-8 justify-center transition-colors">
+                                            <i class="fas fa-external-link-alt text-xs"></i>
+                                        </a>
+                                        <button @click="copyFullUrl(url, userId, groupName, name)" 
+                                                class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-primary transition-colors bg-slate-800/50 rounded shrink-0">
+                                            <i class="fas" :class="copyItemStatus[userId+groupName+name] ? 'fa-check text-green-400' : 'fa-copy'"></i>
+                                        </button>
+                                        <div class="flex-1 sm:hidden"></div>
+                                        <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-rose-400 px-2 sm:hidden">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    <input type="text" :value="stripProtocol(url)" @input="updateUrl(userId, groupName, name, $event.target.value)" 
+                                           class="w-full sm:flex-1 bg-slate-900 rounded px-2 py-1.5 sm:py-1 text-xs font-mono text-primary truncate focus:bg-slate-800 transition-colors">
+                                    <button @click="deleteLink(userId, groupName, name)" class="hidden sm:flex w-6 h-6 items-center justify-center text-slate-600 hover:text-rose-400 opacity-0 group-hover/item:opacity-100 transition-all">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button @click="addGroup(userId)" :disabled="Object.keys(userGroups).length >= 20" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:text-primary hover:border-primary rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-20 flex items-center justify-center gap-2">
+                            <i class="fas fa-layer-group"></i> New Group
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div v-if="Object.keys(config).length === 0" class="flex flex-col items-center justify-center mt-20 text-slate-500 gap-4">
+             <div class="text-5xl opacity-20"><i class="fas fa-code-branch"></i></div>
+             <div class="text-sm">{{ tokenInput ? 'Connecting to GitHub...' : 'Waiting for Token input...' }}</div>
+        </div>
+
+        <div v-cloak class="fixed bottom-6 right-6 flex flex-col gap-2 z-50">
+            <button @click="scrollTo('top')" class="w-10 h-10 rounded-full bg-slate-800/80 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-xl transition-all hover:bg-primary hover:text-white">
+                <i class="fas fa-arrow-up"></i>
+            </button>
+            <button @click="scrollTo('bottom')" class="w-10 h-10 rounded-full bg-slate-800/80 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-xl transition-all hover:bg-primary hover:text-white">
+                <i class="fas fa-arrow-down"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // === ºËÐÄÅäÖÃ ===
+        const OWNER = '__REPO_OWNER__';
+        const REPO = '__REPO_NAME__';
+        const PATH = 'config.json';
+        
+        // Á´½ÓÐÞÕý
+        const PUBLIC_DOMAIN = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html';
+        const CACHE_TOKEN_KEY = 'NEXUS_GH_TOKEN_V2';
+        
+        const { createApp, ref, onMounted, watch } = Vue;
+        
+        createApp({
+            setup() {
+                const config = ref({});
+                const newUserId = ref('');
+                const isSaving = ref(false);
+                const statusText = ref('Waiting...');
+                const statusColor = ref('bg-slate-600');
+                const copyStatus = ref({});
+                const copyItemStatus = ref({});
+                const tokenInput = ref('');
+                let currentSha = '';
+                let timer = null;
+
+                // --- ºËÐÄ£º¸ÄÃû²»ÅÜÎ» (In-Place Rename) ---
+                // Õâ¸öº¯ÊýÄÜ±£Ö¤¸ÄÃûÊ±£¬KeyµÄÎ»ÖÃ²»¶¯
+                const renameKeyInOrder = (obj, oldKey, newKey) => {
+                    if (oldKey === newKey) return obj;
+                    const newObj = {};
+                    Object.keys(obj).forEach(key => {
+                        if (key === oldKey) {
+                            newObj[newKey] = obj[key]; // Ô­µØÌæ»»
+                        } else {
+                            newObj[key] = obj[key];
+                        }
+                    });
+                    return newObj;
+                };
+
+                // --- ºËÐÄ£º×Ô¶¯ÇåÀí (Auto Cleanup) ---
+                // Ö»É¾¿ÕµÄ£¬²»¸ÄÃû£¬²»ÅÅÐò
+                const sanitize = (data) => {
+                    const cleanData = {};
+                    // ±éÀúÓÃ»§
+                    Object.keys(data).forEach(userId => {
+                        const groups = data[userId];
+                        const cleanGroups = {};
+                        // ±éÀú×é
+                        Object.keys(groups).forEach(groupName => {
+                            const links = groups[groupName];
+                            const cleanLinks = {};
+                            // ±éÀúÁ´½Ó
+                            Object.keys(links).forEach(linkName => {
+                                let url = links[linkName] ? links[linkName].trim() : '';
+                                // Ö»±£Áô·Ç¿ÕÁ´½Ó
+                                if (url && url !== 'https://' && url !== 'http://') {
+                                    cleanLinks[linkName] = url;
+                                }
+                            });
+                            // Ö»±£Áô·Ç¿Õ×é
+                            if (Object.keys(cleanLinks).length > 0) {
+                                cleanGroups[groupName] = cleanLinks;
+                            }
+                        });
+                        // Ö»±£Áô·Ç¿ÕÓÃ»§
+                        if (Object.keys(cleanGroups).length > 0) {
+                            cleanData[userId] = cleanGroups;
+                        }
+                    });
+                    return cleanData;
+                };
+
+                // --- GitHub API ---
+                const fetchConfig = async () => {
+                    if (!tokenInput.value) {
+                        statusText.value = 'Input Token'; statusColor.value = 'bg-yellow-500';
+                        return;
+                    }
+                    statusText.value = 'Syncing...'; statusColor.value = 'bg-blue-500';
+                    try {
+                        const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}?t=${Date.now()}`;
+                        const res = await fetch(url, { headers: { 'Authorization': `token ${tokenInput.value}` } });
+                        
+                        if (res.status === 404) {
+                            config.value = {}; 
+                            currentSha = null;
+                            statusText.value = 'New Repo'; statusColor.value = 'bg-green-400';
+                        } else if (!res.ok) {
+                            throw new Error('Auth Error');
+                        } else {
+                            const json = await res.json();
+                            currentSha = json.sha;
+                            const content = decodeURIComponent(escape(atob(json.content)));
+                            config.value = JSON.parse(content); 
+                            statusText.value = 'Synced'; statusColor.value = 'bg-green-400';
+                        }
+                    } catch (e) { 
+                        statusText.value = 'Error'; statusColor.value = 'bg-red-500'; 
+                    }
+                };
+
+                const saveConfig = async () => {
+                    if (!tokenInput.value) return;
+                    isSaving.value = true;
+                    statusText.value = 'Pushing...';
+                    
+                    try {
+                        // ±£´æÇ°Ö´ÐÐÇåÀí (Auto Cleanup)
+                        const cleanData = sanitize(config.value);
+                        
+                        const contentStr = JSON.stringify(cleanData, null, 2);
+                        const contentB64 = btoa(unescape(encodeURIComponent(contentStr)));
+                        
+                        const body = {
+                            message: "Update via Nexus Admin",
+                            content: contentB64,
+                            sha: currentSha
+                        };
+
+                        const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`, {
+                            method: 'PUT',
+                            headers: { 
+                                'Authorization': `token ${tokenInput.value}`,
+                                'Content-Type': 'application/json' 
+                            },
+                            body: JSON.stringify(body)
+                        });
+
+                        if (!res.ok) throw new Error('Save Failed');
+                        
+                        const resJson = await res.json();
+                        currentSha = resJson.content.sha;
+                        statusText.value = 'Synced'; statusColor.value = 'bg-green-400';
+                    } catch (e) { 
+                        statusText.value = 'Save Error'; statusColor.value = 'bg-red-500';
+                    } finally { 
+                        isSaving.value = false; 
+                    }
+                };
+
+                const saveToken = () => {
+                    if (tokenInput.value) {
+                        localStorage.setItem(CACHE_TOKEN_KEY, tokenInput.value);
+                        fetchConfig(); 
+                    }
+                };
+                
+                const manualSync = () => {
+                     if(statusText.value === 'Synced') fetchConfig();
+                     else saveConfig();
+                }
+
+                // --- ½»»¥Âß¼­ ---
+                const stripProtocol = (url) => url.replace(/^https?:\/\//, '');
+                const updateUrl = (id, gn, ln, val) => {
+                    const prefix = config.value[id][gn][ln].startsWith('https') ? 'https://' : 'http://';
+                    config.value[id][gn][ln] = prefix + val.replace(/^https?:\/\//, '');
+                };
+                const toggleSingleProtocol = (id, gn, ln) => {
+                    const url = config.value[id][gn][ln];
+                    config.value[id][gn][ln] = url.startsWith('https') ? url.replace('https', 'http') : url.replace('http', 'https');
+                };
+                const toggleGroupProtocol = (id, gn) => {
+                    const links = config.value[id][gn];
+                    const target = Object.values(links).some(u => u.startsWith('http://')) ? 'https://' : 'http://';
+                    for (const key in links) { links[key] = target + stripProtocol(links[key]); }
+                };
+                const getGroupStatusClass = (links) => {
+                    const urls = Object.values(links);
+                    if (urls.every(u => u.startsWith('https'))) return 'text-primary border-primary/40';
+                    if (urls.every(u => u.startsWith('http://'))) return 'text-green-500 border-green-500/50';
+                    return 'text-yellow-500 border-yellow-500/50';
+                };
+                const getGroupStatusLabel = (links) => Object.values(links).every(u => u.startsWith('https')) ? 'HTTPS' : 'HTTP';
+                
+                const doCopy = (text, callback) => {
+                    const area = document.createElement("textarea"); area.value = text;
+                    area.style.position = "fixed"; area.style.left = "-9999px";
+                    document.body.appendChild(area); area.focus(); area.select();
+                    if (document.execCommand('copy')) callback();
+                    document.body.removeChild(area);
+                };
+                const getJumpUrl = (uid) => `${PUBLIC_DOMAIN}?id=${uid}`;
+                const copyEndpoint = (uid) => {
+                    doCopy(getJumpUrl(uid), () => { copyStatus.value[uid] = true; setTimeout(() => copyStatus.value[uid] = false, 2000); });
+                };
+                const copyFullUrl = (url, id, gn, ln) => {
+                    const key = id + gn + ln;
+                    doCopy(url, () => { copyItemStatus.value[key] = true; setTimeout(() => copyItemStatus.value[key] = false, 2000); });
+                };
+
+                // --- CRUD ---
+                const addUser = () => { 
+                    if (newUserId.value && !config.value[newUserId.value]) { 
+                        config.value[newUserId.value] = { 'My Group': { 'Google': 'https://google.com' } }; 
+                        newUserId.value = ''; 
+                    } 
+                };
+                const deleteUser = (id) => { if(confirm('É¾³ýÓÃ»§: '+id+'?')) delete config.value[id]; };
+                
+                // ÐÂ½¨Ê±Ê¹ÓÃËæ»úºó×º·À³åÍ»£¬µ«ÔÊÐíÓÃ»§¸ÄÃû
+                const addGroup = (id) => { 
+                    const name = `Group ${Date.now().toString().slice(-4)}`;
+                    config.value[id][name] = { 'New Link': 'https://' }; 
+                };
+                const addLink = (id, gn) => { 
+                    const name = `Link ${Date.now().toString().slice(-4)}`;
+                    config.value[id][gn][name] = 'https://'; 
+                };
+                const deleteGroup = (id, gn) => { delete config.value[id][gn]; };
+                const deleteLink = (id, gn, ln) => { delete config.value[id][gn][ln]; };
+                
+                // ¸ÄÃû²»ÅÜÎ»Âß¼­Ó¦ÓÃ
+                const renameUser = (oldName, newName) => { 
+                    if(newName && !config.value[newName]) { 
+                        config.value = renameKeyInOrder(config.value, oldName, newName);
+                    }
+                };
+                const renameGroup = (id, oldName, newName) => { 
+                    if(newName && !config.value[id][newName]) { 
+                        config.value[id] = renameKeyInOrder(config.value[id], oldName, newName);
+                    }
+                };
+                const renameLink = (id, gn, oldName, newName) => { 
+                    if(newName && !config.value[id][gn][newName]) { 
+                        config.value[id][gn] = renameKeyInOrder(config.value[id][gn], oldName, newName);
+                    }
+                };
+                
+                const scrollToUser = (id) => { const el = document.getElementById('user-' + id); if (el) window.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' }); };
+                const scrollTo = (t) => { if (t === 'top') window.scrollTo({ top: 0, behavior: 'smooth' }); else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); };
+
+                watch(config, () => {
+                    clearTimeout(timer);
+                    if(statusText.value === 'Synced') statusText.value = 'Modified...';
+                    timer = setTimeout(saveConfig, 2000);
+                }, { deep: true });
+
+                onMounted(() => {
+                    const cachedToken = localStorage.getItem(CACHE_TOKEN_KEY);
+                    if (cachedToken) {
+                        tokenInput.value = cachedToken;
+                        fetchConfig();
+                    }
+                });
+
+                return { 
+                    config, newUserId, isSaving, statusText, statusColor, copyStatus, copyItemStatus, tokenInput,
+                    saveConfig, saveToken, manualSync,
+                    addUser, deleteUser, addLink, deleteLink, renameUser, renameGroup, renameLink, 
+                    scrollTo, scrollToUser, addGroup, deleteGroup, toggleSingleProtocol, toggleGroupProtocol, 
+                    getGroupStatusClass, getGroupStatusLabel, stripProtocol, updateUrl, copyFullUrl, copyEndpoint, getJumpUrl 
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
