@@ -27,7 +27,7 @@ jobs:
 
       - name: Inject Repo Info into HTML Files
         run: |
-          for file in man.html goo.html; do
+          for file in index.html goo.html; do
             if [ -f "$file" ]; then
               echo "Injecting repo info into $file..."
               sed -i "s/__REPO_OWNER__/${{ github.repository_owner }}/g" "$file"
@@ -71,4 +71,5 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_STONE_0303DA800 }}
           action: "close"
+
 
