@@ -8,6 +8,7 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build_and_deploy_job:
@@ -15,13 +16,25 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     permissions:
-       id-token: write
-       contents: read
+      id-token: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
+
+      - name: Inject Repo Info into HTML Files
+        run: |
+          for file in man.html goo.html; do
+            if [ -f "$file" ]; then
+              echo "Injecting repo info into $file..."
+              sed -i "s/__REPO_OWNER__/${{ github.repository_owner }}/g" "$file"
+              sed -i "s/__REPO_NAME__/${{ github.event.repository.name }}/g" "$file"
+            fi
+          done
+          echo "Injection process finished."
 
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
@@ -30,10 +43,10 @@ jobs:
         uses: actions/github-script@v6
         id: idtoken
         with:
-           script: |
-               const coredemo = require('@actions/core')
-               return await coredemo.getIDToken()
-           result-encoding: string
+          script: |
+            const coredemo = require('@actions/core')
+            return await coredemo.getIDToken()
+          result-encoding: string
 
       - name: Build And Deploy
         id: builddeploy
@@ -41,10 +54,10 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_STONE_0303DA800 }}
           action: "upload"
-          app_location: "/"      # 你的 index.html、json 所在目录
-          api_location: ""       # 没有 API 就留空
-          output_location: ""    # 不使用构建输出目录
-          skip_app_build: true   # 关键：跳过构建
+          app_location: "/"
+          api_location: ""
+          output_location: ""
+          skip_app_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
 
   close_pull_request_job:
@@ -56,4 +69,5 @@ jobs:
         id: closepullrequest
         uses: Azure/static-web-apps-deploy@v1
         with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_STONE_0303DA800 }}
           action: "close"
