@@ -1,0 +1,17 @@
+proxies:
+  - name: "QQQ-vless-ws-80"
+    type: vless
+    server: 157.230.133.119
+    port: 80
+    uuid: 73f8653d-ee1a-416c-a3ed-0ec7423145b5
+    network: ws
+    tls: false
+    udp: true
+    ws-opts:
+      path: /README.md
+
+proxy-groups:
+  - name: Proxy
+    type: select
+    proxies:
+      - QQQ-vless-ws-80
