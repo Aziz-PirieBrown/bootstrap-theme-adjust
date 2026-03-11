@@ -1,1 +1,9 @@
-{}
+{
+  "routes": [
+    {
+      "route": "/",
+      "rewrite": "/man.html",
+      "statusCode": 302
+    }
+  ]
+}
