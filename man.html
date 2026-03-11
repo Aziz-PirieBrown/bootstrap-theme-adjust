@@ -196,7 +196,8 @@ man.html<!DOCTYPE html>
         const PATH = 'config.json';
         
         // Á´½ÓÐÞÕý
-        const PUBLIC_DOMAIN = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html';
+  const PUBLIC_DOMAIN = new URL('./goo.html', window.location.href).href;
+;
         const CACHE_TOKEN_KEY = 'NEXUS_GH_TOKEN_V2';
         
         const { createApp, ref, onMounted, watch } = Vue;
