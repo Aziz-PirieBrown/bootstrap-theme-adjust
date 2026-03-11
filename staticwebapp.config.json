@@ -1,8 +1,1 @@
-{
-  "routes": [
-    {
-      "route": "/",
-      "redirect": "/man.html"
-    }
-  ]
-}
+{}
