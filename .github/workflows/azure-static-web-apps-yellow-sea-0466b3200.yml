@@ -1,5 +1,5 @@
 name: Azure Static Web Apps CI/CD (Auto-Injection Mode)
-
+#带后端FUCNTION版本 已经废弃
 on:
   workflow_dispatch:
   push:
