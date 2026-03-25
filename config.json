@@ -31,7 +31,7 @@
   },
   "RAINY2": {
     "Default": {
-      "board": "http://pm.rainplay.cn:27277/board/",
+      "board": "http://pm.rainplay.cn:49660/board/",
       "iflow": "https://pm.rainplay.cn:49660/iflow/"
     }
   }
