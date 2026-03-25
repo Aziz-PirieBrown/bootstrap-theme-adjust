@@ -31,7 +31,7 @@
   },
   "RAINY2": {
     "Default": {
-      "Home": "http://pm.rainplay.cn:27277/board/"
+      "board": "http://pm.rainplay.cn:27277/board/"
     }
   }
 }
