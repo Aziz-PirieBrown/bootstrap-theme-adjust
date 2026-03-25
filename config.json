@@ -40,5 +40,10 @@
     "My Group": {
       "YSY-Console": "https://cloud.yishuit.cn/auth/login"
     }
+  },
+  "SCREEN": {
+    "My Group": {
+      "Google": "https://google.com"
+    }
   }
 }
