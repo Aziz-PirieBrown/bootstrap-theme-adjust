@@ -16,10 +16,9 @@
   },
   "AZUREJP": {
     "Group 1": {
-      "jsptophp": "http://40.74.76.9:35637/jsptophp/index",
+      "jsptophp": "http://40.74.76.9:35637/jsptophp",
       "boardDIST": "https://40.74.76.9:35637/dist/",
-      "clipboard": "https://40.74.76.9:35637/clipboard/",
-      "Link 4": "https://40.74.76.9:35637/jsptophp/"
+      "clipboard": "https://40.74.76.9:35637/clipboard/"
     },
     "Group 2": {
       "Link 1": "https://144154564"
