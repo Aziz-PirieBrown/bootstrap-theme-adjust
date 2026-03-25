@@ -35,5 +35,10 @@
       "board": "http://pm.rainplay.cn:49660/board/",
       "iflow": "http://pm.rainplay.cn:49660/iflow/"
     }
+  },
+  "YSY": {
+    "My Group": {
+      "Google": "https://google.com"
+    }
   }
 }
