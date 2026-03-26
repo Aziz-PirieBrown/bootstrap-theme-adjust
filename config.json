@@ -50,5 +50,10 @@
       "panel": "https://getscreen.me/panel/agents?page=1",
       "P30": "https://go.getscreen.me/ldu-vik-sy8"
     }
+  },
+  "API": {
+    "My Group": {
+      "Google": "https://google.com"
+    }
   }
 }
