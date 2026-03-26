@@ -23,7 +23,8 @@
       "boardDIST": "http://40.74.76.9:35637/dist/",
       "clipboard": "http://40.74.76.9:35637/clipboard/",
       "manLINKS": "http://40.74.76.9:35637/man/",
-      "agent": "https://40.74.76.9:4440/agent"
+      "agent": "https://40.74.76.9:4440/agent",
+      "Link 6187": "https://40.74.76.9:35637/ttyd/"
     },
     "Group 2": {
       "Link 1": "https://144154564"
