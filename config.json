@@ -27,7 +27,8 @@
       "clipboard": "http://40.74.76.9:35637/clipboard/",
       "manLINKS": "http://40.74.76.9:35637/man/",
       "agent": "http://40.74.76.9:4440/agent",
-      "ttyd": "http://40.74.76.9:35637/ttyd/"
+      "ttyd": "http://40.74.76.9:35637/ttyd/",
+      "board": "https://40.74.76.9:35637/board/"
     },
     "Group 2": {
       "Link 1": "https://144154564"
