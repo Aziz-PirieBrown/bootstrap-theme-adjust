@@ -47,7 +47,7 @@
   "YSY": {
     "My Group": {
       "YSY-Console": "http://cloud.yishuit.cn/auth/login",
-      "broswer": "http://ct4.xyzy.eu.org:8129/",
+      "broswer": "http://ct4.xyzy.eu.org:8129/broswer",
       "openclaw": "http://ct4.xyzy.eu.org:8141/"
     }
   },
