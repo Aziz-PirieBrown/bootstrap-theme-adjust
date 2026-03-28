@@ -46,9 +46,9 @@
   },
   "YSY": {
     "My Group": {
-      "YSY-Console": "https://cloud.yishuit.cn/auth/login",
-      "broswer": "https://ct4.xyzy.eu.org:8129/",
-      "openclaw": "https://ct4.xyzy.eu.org:8141/"
+      "YSY-Console": "http://cloud.yishuit.cn/auth/login",
+      "broswer": "http://ct4.xyzy.eu.org:8129/",
+      "openclaw": "http://ct4.xyzy.eu.org:8141/"
     }
   },
   "SCREEN": {
