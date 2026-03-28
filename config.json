@@ -42,7 +42,8 @@
   "RAINY2": {
     "Default": {
       "board": "http://pm.rainplay.cn:49660/board/",
-      "iflow": "http://pm.rainplay.cn:49660/iflow/"
+      "iflow": "http://pm.rainplay.cn:49660/iflow/",
+      "Link 4129": "https://asd03002473760.1"
     }
   },
   "YSY": {
