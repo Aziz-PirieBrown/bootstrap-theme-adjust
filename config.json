@@ -54,7 +54,7 @@
       "corsor2api": "http://ct4.xyzy.eu.org:8140/",
       "zeroclaw": "http://ct4.xyzy.eu.org:8140/",
       "Link 4562": "http://ct4.xyzy.eu.org:8136/",
-      "Link 7994": "https://ct4.xyzy.eu.org:8135/vnc.html"
+      "vnc": "https://ct4.xyzy.eu.org:8135/vnc.html"
     }
   },
   "SCREEN": {
