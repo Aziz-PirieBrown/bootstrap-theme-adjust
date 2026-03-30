@@ -31,7 +31,8 @@
       "agent": "http://40.74.76.9:4440/agent",
       "ttyd": "http://40.74.76.9:35637/ttyd/",
       "board": "http://40.74.76.9:35637/board/",
-      "zeroclaw": "http://40.74.76.9:4440/"
+      "zeroclaw": "http://40.74.76.9:4440/",
+      "Link 4381": "https://40.74.76.9:35637/board/"
     },
     "Group 3": {
       "Link 1": "https://123123",
