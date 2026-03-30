@@ -66,5 +66,10 @@
     "My Group": {
       "openrouter": "https://openrouter.ai/models?q=free"
     }
+  },
+  "curcor": {
+    "My Group": {
+      "Google": "https://google.com"
+    }
   }
 }
