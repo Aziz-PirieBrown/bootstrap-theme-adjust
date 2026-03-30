@@ -42,7 +42,8 @@
     "Default": {
       "board": "http://pm.rainplay.cn:49660/board/",
       "iflow": "http://pm.rainplay.cn:49660/iflow/",
-      "密码": "https://asd03002473760.1"
+      "密码": "https://asd03002473760.1",
+      "Link 8620": "https://pm.rainplay.cn:49660/broswer/"
     }
   },
   "YSY": {
