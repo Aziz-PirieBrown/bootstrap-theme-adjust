@@ -32,7 +32,7 @@
       "ttyd": "http://40.74.76.9:35637/ttyd/",
       "board": "http://40.74.76.9:35637/board/",
       "zeroclaw": "http://40.74.76.9:4440/",
-      "phpNew": "https://40.74.76.9:35637/phpNew/"
+      "phpNew": "http://40.74.76.9:35637/phpNew/"
     },
     "Group 3": {
       "Link 1": "https://123123",
