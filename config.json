@@ -55,7 +55,7 @@
       "corsor2api": "http://ct4.xyzy.eu.org:8140/",
       "zeroclaw": "http://ct4.xyzy.eu.org:8140/",
       "codex-RES": "http://ct4.xyzy.eu.org:8136/",
-      "vnc": "https://ct4.xyzy.eu.org:8135/vnc.html"
+      "vnc": "http://ct4.xyzy.eu.org:8135/vnc.html"
     }
   },
   "SCREEN": {
