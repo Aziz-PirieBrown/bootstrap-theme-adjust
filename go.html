@@ -2,26 +2,435 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <script>
-        // 1. 抢在页面渲染前执行逻辑
-        (function() {
-            const id = new URLSearchParams(window.location.search).get('id');
-            if (!id) { window.location.replace("./index.html"); return; }
-
-            const key = "__AZURE_KEY__";
-            // 2. 直接构造后端地址
-            const target = `https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/go?code=${key}&id=${id}`;
-
-            // 3. 极致加速：不再 fetch 探测，直接利用浏览器的重定向处理
-            // 这种方式不需要等待后端返回 JSON，后端返回 302 时浏览器会瞬间跟进
-            window.location.replace(target);
-        })();
-    </script>
     <title>Loading...</title>
     <style>
-        /* 仅保留最基础背景色，防止闪白眼 */
-        body { background: #0f172a; }
+        :root {
+            color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .status-shell {
+            max-width: 880px;
+            margin: 24px auto;
+            padding: 20px;
+        }
+
+        .panel {
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 16px;
+            padding: 18px 20px;
+            box-shadow: 0 14px 36px rgba(2, 6, 23, 0.32);
+        }
+
+        .title {
+            margin: 0 0 8px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            margin: 0 0 18px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 12px;
+            padding: 12px 14px;
+        }
+
+        .card-label {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .card-value {
+            color: #f8fafc;
+            font-size: 14px;
+            word-break: break-all;
+        }
+
+        .status-bar {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(30, 41, 59, 0.72);
+        }
+
+        .status-bar.error {
+            border-color: rgba(248, 113, 113, 0.35);
+            background: rgba(127, 29, 29, 0.28);
+            color: #fecaca;
+        }
+
+        .status-bar.success {
+            border-color: rgba(74, 222, 128, 0.32);
+            background: rgba(20, 83, 45, 0.32);
+            color: #bbf7d0;
+        }
+
+        .status-bar.info {
+            color: #cbd5e1;
+        }
+
+        .preview {
+            margin-top: 16px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(2, 6, 23, 0.58);
+        }
+
+        .preview-header {
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #94a3b8;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        }
+
+        pre {
+            margin: 0;
+            padding: 14px;
+            max-height: 320px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #e2e8f0;
+        }
+
+        .hidden {
+            display: none;
+        }
     </style>
+    <script>
+        const AZURE_KEY = "__AZURE_KEY__";
+        const SHORTLINK_API = "./afunction.php";
+        const SHORTLINK_JSON = "./shortlink.json";
+        const INPUT_PREVIEW_LIMIT = 100;
+
+        function jsonResponse(success, data = null, error = null, meta = {}) {
+            return {
+                success,
+                data,
+                error,
+                meta,
+            };
+        }
+
+        function getInputPreview(input) {
+            return String(input ?? "").slice(0, INPUT_PREVIEW_LIMIT);
+        }
+
+        function getDataLength(value) {
+            try {
+                return JSON.stringify(value ?? null).length;
+            } catch (error) {
+                return 0;
+            }
+        }
+
+        function getEntryCount(data) {
+            if (Array.isArray(data)) {
+                return data.length;
+            }
+
+            if (data && typeof data === "object") {
+                return Object.keys(data).length;
+            }
+
+            return 0;
+        }
+
+        function buildTargetUrl(id) {
+            return `https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/go?code=${AZURE_KEY}&id=${encodeURIComponent(id)}`;
+        }
+
+        function validateShortlinkData(data) {
+            if (!data || typeof data !== "object" || Array.isArray(data)) {
+                return jsonResponse(false, null, "Invalid data", {
+                    inputPreview: getInputPreview(data),
+                    length: getDataLength(data),
+                });
+            }
+
+            return jsonResponse(true, data, null, {
+                length: getDataLength(data),
+                entryCount: getEntryCount(data),
+            });
+        }
+
+        async function loadShortlinkData() {
+            try {
+                const response = await fetch(SHORTLINK_API, {
+                    cache: "no-store",
+                    headers: {
+                        "Accept": "application/json",
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    return jsonResponse(true, data, null, {
+                        source: "afunction.php",
+                        length: getDataLength(data),
+                        entryCount: getEntryCount(data),
+                    });
+                }
+            } catch (error) {
+            }
+
+            try {
+                const response = await fetch(SHORTLINK_JSON, {
+                    cache: "no-store",
+                    headers: {
+                        "Accept": "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    return jsonResponse(false, null, `Load failed: HTTP ${response.status}`, {
+                        source: "shortlink.json",
+                    });
+                }
+
+                const data = await response.json();
+                return jsonResponse(true, data, null, {
+                    source: "shortlink.json",
+                    length: getDataLength(data),
+                    entryCount: getEntryCount(data),
+                });
+            } catch (error) {
+                return jsonResponse(false, null, `Load failed: ${error.message}`, {
+                    source: "shortlink.json",
+                });
+            }
+        }
+
+        async function saveShortlinkData(data) {
+            if (data === undefined || data === null || data === "") {
+                return jsonResponse(false, null, "No input data", {
+                    inputPreview: getInputPreview(data),
+                    length: getDataLength(data),
+                });
+            }
+
+            const validation = validateShortlinkData(data);
+            if (!validation.success) {
+                return validation;
+            }
+
+            try {
+                const response = await fetch(`${SHORTLINK_API}?action=save`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    body: JSON.stringify(validation.data),
+                });
+
+                const result = await response.json().catch(() => null);
+                if (!response.ok) {
+                    return jsonResponse(false, null, result?.error || `Save failed: HTTP ${response.status}`, {
+                        inputPreview: getInputPreview(JSON.stringify(validation.data)),
+                        length: validation.meta?.length || getDataLength(validation.data),
+                        entryCount: validation.meta?.entryCount || getEntryCount(validation.data),
+                    });
+                }
+
+                if (result && result.success) {
+                    return jsonResponse(true, result, null, {
+                        inputPreview: getInputPreview(JSON.stringify(validation.data)),
+                        length: validation.meta?.length || getDataLength(validation.data),
+                        entryCount: validation.meta?.entryCount || getEntryCount(validation.data),
+                    });
+                }
+
+                return jsonResponse(false, null, result?.error || "Save failed", {
+                    inputPreview: getInputPreview(JSON.stringify(validation.data)),
+                    length: validation.meta?.length || getDataLength(validation.data),
+                    entryCount: validation.meta?.entryCount || getEntryCount(validation.data),
+                });
+            } catch (error) {
+                return jsonResponse(false, null, `Save failed: ${error.message}`, {
+                    inputPreview: getInputPreview(JSON.stringify(validation.data)),
+                    length: validation.meta?.length || getDataLength(validation.data),
+                    entryCount: validation.meta?.entryCount || getEntryCount(validation.data),
+                });
+            }
+        }
+
+        async function redirectById(id) {
+            if (!id) {
+                window.location.replace("./index.html");
+                return;
+            }
+
+            const target = buildTargetUrl(id);
+            window.location.replace(target);
+        }
+
+        function updateStatus(result, title) {
+            const status = document.getElementById("status");
+            const mode = result.success ? "success" : "error";
+            status.className = `status-bar ${mode}`;
+            status.textContent = `${title}: ${result.success ? "success" : (result.error || "failed")}`;
+        }
+
+        function updateMetrics(meta = {}, currentId = "") {
+            document.getElementById("currentId").textContent = currentId || "-";
+            document.getElementById("entryCount").textContent = meta.entryCount ?? 0;
+            document.getElementById("dataLength").textContent = meta.length ?? 0;
+            document.getElementById("dataSource").textContent = meta.source || "runtime";
+        }
+
+        function updatePreview(label, value) {
+            const wrapper = document.getElementById("preview");
+            const title = document.getElementById("previewTitle");
+            const content = document.getElementById("previewContent");
+
+            if (value === undefined || value === null || value === "") {
+                wrapper.classList.add("hidden");
+                content.textContent = "";
+                title.textContent = "";
+                return;
+            }
+
+            title.textContent = label;
+            content.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+            wrapper.classList.remove("hidden");
+        }
+
+        async function initializePage() {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get("id");
+            const action = params.get("action");
+
+            document.getElementById("status").className = "status-bar info";
+            document.getElementById("status").textContent = "Initializing...";
+            updateMetrics({}, id || "");
+
+            if (action === "load") {
+                const result = await loadShortlinkData();
+                updateStatus(result, "Load");
+                updateMetrics(result.meta, id || "");
+                updatePreview("Loaded data", result.success ? result.data : result.error);
+                return;
+            }
+
+            if (action === "save") {
+                const payloadText = params.get("data") || "";
+
+                if (!payloadText) {
+                    const result = jsonResponse(false, null, "No input data", {
+                        inputPreview: "",
+                        length: 0,
+                    });
+                    updateStatus(result, "Save");
+                    updateMetrics(result.meta, id || "");
+                    updatePreview("Input preview", result.meta.inputPreview);
+                    return;
+                }
+
+                let parsed;
+                try {
+                    parsed = JSON.parse(payloadText);
+                } catch (error) {
+                    const result = jsonResponse(false, null, `JSON decode error: ${error.message}`, {
+                        inputPreview: getInputPreview(payloadText),
+                        length: payloadText.length,
+                    });
+                    updateStatus(result, "Save");
+                    updateMetrics(result.meta, id || "");
+                    updatePreview("Input preview", result.meta.inputPreview);
+                    return;
+                }
+
+                const result = await saveShortlinkData(parsed);
+                updateStatus(result, "Save");
+                updateMetrics(result.meta, id || "");
+                updatePreview(result.success ? "Saved data preview" : "Input preview", result.meta?.inputPreview || parsed);
+                return;
+            }
+
+            document.getElementById("status").textContent = "Redirecting...";
+            updatePreview("Target URL", id ? buildTargetUrl(id) : "No id provided");
+            await redirectById(id);
+        }
+
+        window.ShortlinkManager = {
+            buildTargetUrl,
+            validateShortlinkData,
+            loadShortlinkData,
+            saveShortlinkData,
+            redirectById,
+            getInputPreview,
+            getDataLength,
+            getEntryCount,
+        };
+
+        window.addEventListener("DOMContentLoaded", initializePage);
+    </script>
 </head>
-<body></body>
+<body>
+    <div class="status-shell">
+        <div class="panel">
+            <h1 class="title">Shortlink Runtime</h1>
+            <p class="subtitle">已补齐读取、保存、校验、显示、长度预览等前端能力，保留原始跳转逻辑。</p>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-label">Current ID</div>
+                    <div class="card-value" id="currentId">-</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Entry Count</div>
+                    <div class="card-value" id="entryCount">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Data Length</div>
+                    <div class="card-value" id="dataLength">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Data Source</div>
+                    <div class="card-value" id="dataSource">runtime</div>
+                </div>
+            </div>
+
+            <div id="status" class="status-bar info">Initializing...</div>
+
+            <div id="preview" class="preview hidden">
+                <div id="previewTitle" class="preview-header"></div>
+                <pre id="previewContent"></pre>
+            </div>
+        </div>
+    </div>
+</body>
 </html>
