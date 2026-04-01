@@ -113,6 +113,94 @@
             border-bottom: 1px solid rgba(148, 163, 184, 0.14);
         }
 
+        .link-picker {
+            margin-top: 16px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(2, 6, 23, 0.58);
+        }
+
+        .link-picker-header {
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #94a3b8;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        }
+
+        .link-picker-content {
+            padding: 14px;
+        }
+
+        .link-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            background: rgba(30, 41, 59, 0.58);
+            color: #e2e8f0;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .link-item + .link-item {
+            margin-top: 10px;
+        }
+
+        .link-item:hover {
+            border-color: rgba(56, 189, 248, 0.6);
+            background: rgba(30, 41, 59, 0.84);
+            transform: translateY(-1px);
+        }
+
+        .link-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .link-name-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+            min-width: 0;
+        }
+
+        .link-group {
+            color: #7dd3fc;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .link-sep {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .link-name {
+            color: #f8fafc;
+            font-size: 14px;
+            font-weight: 600;
+            min-width: 0;
+        }
+
+        .link-url {
+            color: #94a3b8;
+            font-size: 13px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .link-arrow {
+            color: #38bdf8;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
         pre {
             margin: 0;
             padding: 14px;
@@ -337,54 +425,198 @@
                 }
             }
     
+            async function fetchConfigFromStatic() {
+                try {
+                    const response = await fetch(`./${PATH}?t=${Date.now()}`, {
+                        cache: "no-store",
+                        headers: {
+                            "Accept": "application/json",
+                        },
+                    });
+
+                    if (!response.ok) {
+                        return jsonResponse(false, null, `Load failed: HTTP ${response.status}`, {
+                            source: "static:config.json",
+                        });
+                    }
+
+                    const data = await response.json();
+                    const validation = validateShortlinkData(data);
+                    if (!validation.success) {
+                        return validation;
+                    }
+
+                    return jsonResponse(true, data, null, {
+                        source: "static:config.json",
+                        length: validation.meta.length,
+                        entryCount: validation.meta.entryCount,
+                    });
+                } catch (error) {
+                    return jsonResponse(false, null, `Load failed: ${error.message}`, {
+                        source: "static:config.json",
+                    });
+                }
+            }
+
+            async function resolveConfigData() {
+                const token = getToken();
+                if (token) {
+                    const githubResult = await loadShortlinkData();
+                    if (githubResult.success) {
+                        return githubResult;
+                    }
+                }
+
+                return fetchConfigFromStatic();
+            }
+
+            function collectUserLinks(userId, userData) {
+                const items = [];
+                for (const [groupName, links] of Object.entries(userData || {})) {
+                    for (const [linkName, url] of Object.entries(links || {})) {
+                        if (typeof url === "string" && /^https?:\/\//i.test(url)) {
+                            items.push({ userId, groupName, linkName, url });
+                        }
+                    }
+                }
+                return items;
+            }
+
+            function renderUserLinks(userId, items) {
+                const wrapper = document.getElementById("linkPicker");
+                const title = document.getElementById("linkPickerTitle");
+                const content = document.getElementById("linkPickerContent");
+
+                if (!items.length) {
+                    wrapper.classList.add("hidden");
+                    title.textContent = "";
+                    content.innerHTML = "";
+                    return;
+                }
+
+                title.textContent = `${userId} 可选链接`;
+                content.innerHTML = items.map(({ groupName, linkName, url }) => {
+                    const safeGroup = String(groupName);
+                    const safeName = String(linkName);
+                    const safeUrl = String(url);
+                    const displayUrl = safeUrl.replace(/^https?:\/\//i, "");
+                    return `
+                        <a href="${safeUrl}" class="link-item">
+                            <div class="link-copy">
+                                <div class="link-name-row">
+                                    <span class="link-group">${safeGroup}</span>
+                                    <span class="link-sep">/</span>
+                                    <span class="link-name">${safeName}</span>
+                                </div>
+                                <div class="link-url">${displayUrl}</div>
+                            </div>
+                            <span class="link-arrow">→</span>
+                        </a>
+                    `;
+                }).join("");
+                wrapper.classList.remove("hidden");
+            }
+
             async function redirectById(id) {
                 if (!id) {
                     window.location.replace("./index.html");
                     return;
                 }
-    
-                const target = buildTargetUrl(id);
-                window.location.replace(target);
+
+                const configResult = await resolveConfigData();
+                if (!configResult.success) {
+                    updateStatus(configResult, "Resolve");
+                    updateMetrics(configResult.meta, id);
+                    updatePreview("Resolve error", configResult.error);
+                    renderUserLinks(id, []);
+                    return;
+                }
+
+                const userData = configResult.data?.[id];
+                if (!userData || typeof userData !== "object") {
+                    const result = jsonResponse(false, null, `User not found: ${id}`, {
+                        source: configResult.meta?.source || "runtime",
+                    });
+                    updateStatus(result, "Resolve");
+                    updateMetrics(result.meta, id);
+                    updatePreview("Resolve error", result.error);
+                    renderUserLinks(id, []);
+                    return;
+                }
+
+                const items = collectUserLinks(id, userData);
+                if (!items.length) {
+                    const result = jsonResponse(false, null, `No valid links for user: ${id}`, {
+                        source: configResult.meta?.source || "runtime",
+                    });
+                    updateStatus(result, "Resolve");
+                    updateMetrics(result.meta, id);
+                    updatePreview("Resolve error", result.error);
+                    renderUserLinks(id, []);
+                    return;
+                }
+
+                updateMetrics({
+                    source: configResult.meta?.source || "runtime",
+                    length: getDataLength(userData),
+                    entryCount: items.length,
+                }, id);
+
+                if (items.length === 1) {
+                    updateStatus(jsonResponse(true, null, null, {
+                        source: configResult.meta?.source || "runtime",
+                    }), "Redirect");
+                    updatePreview("Target URL", items[0].url);
+                    window.location.replace(items[0].url);
+                    return;
+                }
+
+                updateStatus(jsonResponse(true, null, null, {
+                    source: configResult.meta?.source || "runtime",
+                }), "Select");
+                updatePreview("Loaded user data", userData);
+                renderUserLinks(id, items);
             }
-    
+
             function updateStatus(result, title) {
                 const status = document.getElementById("status");
                 const mode = result.success ? "success" : "error";
                 status.className = `status-bar ${mode}`;
                 status.textContent = `${title}: ${result.success ? "success" : (result.error || "failed")}`;
             }
-    
+
             function updateMetrics(meta = {}, currentId = "") {
                 document.getElementById("currentId").textContent = currentId || "-";
                 document.getElementById("entryCount").textContent = meta.entryCount ?? 0;
                 document.getElementById("dataLength").textContent = meta.length ?? 0;
                 document.getElementById("dataSource").textContent = meta.source || "runtime";
             }
-    
+
             function updatePreview(label, value) {
                 const wrapper = document.getElementById("preview");
                 const title = document.getElementById("previewTitle");
                 const content = document.getElementById("previewContent");
-    
+
                 if (value === undefined || value === null || value === "") {
                     wrapper.classList.add("hidden");
                     content.textContent = "";
                     title.textContent = "";
                     return;
                 }
-    
+
                 title.textContent = label;
                 content.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
                 wrapper.classList.remove("hidden");
             }
-    
+
             async function handleManualLoad() {
                 const result = await loadShortlinkData();
                 updateStatus(result, "Load");
                 updateMetrics(result.meta, new URLSearchParams(window.location.search).get("id") || "");
                 updatePreview("Loaded data", result.success ? result.data : result.error);
+                renderUserLinks("", []);
             }
-    
+
             async function handleManualSave() {
                 const payloadText = new URLSearchParams(window.location.search).get("data") || "";
                 if (!payloadText) {
@@ -395,9 +627,10 @@
                     updateStatus(result, "Save");
                     updateMetrics(result.meta, new URLSearchParams(window.location.search).get("id") || "");
                     updatePreview("Input preview", result.meta.inputPreview);
+                    renderUserLinks("", []);
                     return;
                 }
-    
+
                 let parsed;
                 try {
                     parsed = JSON.parse(payloadText);
@@ -409,15 +642,17 @@
                     updateStatus(result, "Save");
                     updateMetrics(result.meta, new URLSearchParams(window.location.search).get("id") || "");
                     updatePreview("Input preview", result.meta.inputPreview);
+                    renderUserLinks("", []);
                     return;
                 }
-    
+
                 const result = await saveShortlinkData(parsed);
                 updateStatus(result, "Save");
                 updateMetrics(result.meta, new URLSearchParams(window.location.search).get("id") || "");
                 updatePreview(result.success ? "Saved data preview" : "Input preview", result.meta?.inputPreview || parsed);
+                renderUserLinks("", []);
             }
-    
+
             async function initializePage() {
                 const params = new URLSearchParams(window.location.search);
                 const id = params.get("id");
@@ -429,29 +664,35 @@
                     tokenInput.addEventListener("change", () => persistToken(tokenInput.value.trim()));
                 }
                 currentToken = cachedToken;
-    
+
                 document.getElementById("loadBtn").addEventListener("click", handleManualLoad);
                 document.getElementById("saveBtn").addEventListener("click", handleManualSave);
-    
+
                 document.getElementById("status").className = "status-bar info";
                 document.getElementById("status").textContent = "Initializing...";
                 updateMetrics({}, id || "");
-    
+                renderUserLinks("", []);
+
                 if (action === "load") {
                     await handleManualLoad();
                     return;
                 }
-    
+
                 if (action === "save") {
                     await handleManualSave();
                     return;
                 }
-    
-                document.getElementById("status").textContent = "Redirecting...";
-                updatePreview("Target URL", id ? buildTargetUrl(id) : "No id provided");
+
+                if (!id) {
+                    document.getElementById("status").textContent = "No id provided";
+                    updatePreview("Usage", "Append ?id=your-user-id to open user links.");
+                    return;
+                }
+
+                document.getElementById("status").textContent = "Resolving...";
                 await redirectById(id);
             }
-    
+
             window.ShortlinkManager = {
                 buildTargetUrl,
                 validateShortlinkData,
@@ -461,6 +702,8 @@
                 getInputPreview,
                 getDataLength,
                 getEntryCount,
+                collectUserLinks,
+                resolveConfigData,
             };
     
             window.addEventListener("DOMContentLoaded", initializePage);
@@ -507,6 +750,11 @@
                 <div id="preview" class="preview hidden">
                     <div id="previewTitle" class="preview-header"></div>
                     <pre id="previewContent"></pre>
+                </div>
+
+                <div id="linkPicker" class="link-picker hidden">
+                    <div id="linkPickerTitle" class="link-picker-header"></div>
+                    <div id="linkPickerContent" class="link-picker-content"></div>
                 </div>
             </div>
         </div>
