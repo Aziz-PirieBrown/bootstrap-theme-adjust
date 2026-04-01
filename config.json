@@ -74,5 +74,10 @@
     "My Group": {
       "复制机器码": "https://zen2api.wusimpl.fun/buy"
     }
+  },
+  "cloudflare": {
+    "My Group": {
+      "Google": "https://google.com"
+    }
   }
 }
