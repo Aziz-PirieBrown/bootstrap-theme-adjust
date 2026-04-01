@@ -21,6 +21,12 @@
             outline: none !important; 
             box-shadow: none !important; 
             background-color: transparent;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+        }
+
+        .group-hover-item:hover .pc-delete {
+            opacity: 1;
         }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,16 +41,29 @@
     </script>
 </head>
 <body class="min-h-screen pb-20 relative text-slate-300">
-    <div id="app" class="max-w-6xl mx-auto p-4 md:p-8">
+    <div id="app" class="max-w-6xl mx-auto p-4 md:p-8" v-cloak>
         
         <header class="bg-card border border-border rounded-xl p-6 mb-6 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-4 w-full md:w-auto">
                 <div class="w-3 h-3 rounded-full transition-colors duration-500 shrink-0 shadow-[0_0_10px_rgba(0,0,0,0.5)]" :class="statusColor"></div>
+
                 <div class="flex-1">
-                    <h1 class="text-xl sm:text-2xl font-bold text-white uppercase tracking-tight">NEXUS <span class="text-primary">GIT</span></h1>
+                    <h1 class="text-xl sm:text-2xl font-bold text-white uppercase tracking-tight">
+                        NEXUS <span class="text-primary">GIT</span>
+                    </h1>
+
                     <div class="text-[10px] sm:text-xs font-mono uppercase tracking-tighter flex gap-2">
                         <span class="text-slate-400">REPO_MODE |</span>
-                        <span class="init-loading" :class="{'text-green-400': statusText==='Synced', 'text-yellow-400': statusText && statusText.includes('Wait')}">
+                        <span
+                            class="init-loading"
+                            :class="statusText === 'Synced'
+                                ? 'text-green-400'
+                                : (statusText.includes('Sync') || statusText.includes('Push') || statusText.includes('Wait') || statusText.includes('Input'))
+                                ? 'text-yellow-400'
+                                : (statusText.includes('Error') || statusText.includes('Save'))
+                                ? 'text-rose-400'
+                                : 'text-slate-400'"
+                        >
                             {{ statusText }}
                         </span>
                     </div>
@@ -53,7 +72,7 @@
 
             <div class="flex-1 w-full md:max-w-md flex items-center gap-2 bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 focus-within:border-primary/50 transition-colors">
                 <i class="fas fa-key text-slate-500 ml-2 text-xs"></i>
-                <input type="password" v-model="tokenInput" @change="saveToken" placeholder="GitHub Token (ÊäÈëÒ»´Î×Ô¶¯±£´æ)" class="w-full bg-transparent text-sm text-white px-2 placeholder-slate-600 font-mono">
+                <input type="password" v-model="tokenInput" @change="saveToken" placeholder="GitHub Token" class="w-full bg-transparent text-sm text-white px-2 placeholder-slate-600 font-mono">
             </div>
 
             <button v-cloak @click="manualSync" :disabled="isSaving || !tokenInput" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm shadow-lg shrink-0 flex items-center gap-2">
@@ -62,51 +81,64 @@
             </button>
         </header>
 
-        <div v-cloak v-if="Object.keys(config).length > 0" class="flex flex-wrap gap-2 mb-8 bg-slate-900/40 p-3 rounded-xl border border-border/50">
-            <div v-for="(val, userId) in config" :key="'nav-'+userId" @click="scrollToUser(userId)"
-                 class="px-3 py-1.5 bg-slate-800 hover:bg-primary/20 border border-slate-700 hover:border-primary rounded-md cursor-pointer transition-all text-xs sm:text-sm font-mono text-slate-400 flex items-center gap-2">
-                <i class="fas fa-user-circle text-xs opacity-50"></i> {{ userId }}
+        <div v-cloak class="mb-8">
+            <div class="bg-card border border-border rounded-xl p-6 shadow-lg">
+                <div class="flex gap-2">
+                    <button @click="addUser" class="bg-slate-700 hover:bg-slate-600 px-4 rounded-lg font-bold transition-all text-white shrink-0">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <input v-model="newUserId" @keyup.enter="addUser" type="text" placeholder="new user" class="w-full bg-slate-900 rounded-lg px-3 py-2 text-sm text-white font-mono">
+                </div>
             </div>
         </div>
 
-        <div v-cloak v-if="Object.keys(config).length > 0" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div class="lg:col-span-4">
-                <div class="bg-card border border-border rounded-xl p-6 shadow-lg sticky top-8">
-                    <h3 class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-widest flex items-center gap-2">
-                        <i class="fas fa-plus-circle"></i> New Identity
-                    </h3>
-                    <div class="flex gap-2">
-                        <input v-model="newUserId" @keyup.enter="addUser" type="text" placeholder="User ID" class="w-full bg-slate-900 rounded-lg px-3 py-2 text-sm text-white font-mono">
-                        <button @click="addUser" class="bg-slate-700 hover:bg-slate-600 px-4 rounded-lg font-bold transition-all text-white">
-                            <i class="fas fa-plus"></i>
-                        </button>
+        <div v-cloak v-if="Object.keys(config).length > 0" class="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div class="shrink-0 lg:w-auto lg:sticky lg:top-8 self-start">
+                <div class="bg-card border border-border rounded-xl p-3 shadow-lg overflow-visible w-fit min-w-[9ch] max-w-none">
+                    <div class="flex flex-col gap-3 overflow-visible">
+                        <div v-for="(val, userId, index) in config" :key="'nav-wrap-' + userId" class="flex items-center gap-2 overflow-visible">
+                            <div @click="scrollToUser(userId)"
+                                 class="w-fit min-w-[9ch] max-w-none px-3 py-1.5 bg-slate-800 hover:bg-primary/20 border border-slate-700 hover:border-primary rounded-md cursor-pointer transition-all text-xs sm:text-sm font-mono text-slate-400 flex items-center gap-2 overflow-visible whitespace-nowrap">
+                                <i class="fas fa-user-circle text-xs opacity-50 shrink-0"></i>
+                                <span class="whitespace-nowrap overflow-visible">{{ userId }}</span>
+                            </div>
+
+                            <button v-if="index === 0" @click="scrollTo('top')" class="w-9 h-9 rounded-lg bg-slate-800/80 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-lg transition-all hover:bg-primary hover:text-white shrink-0" title="Top">
+                                <i class="fas fa-arrow-up"></i>
+                            </button>
+
+                            <button v-if="index === 5 || (Object.keys(config).length < 6 && index === Object.keys(config).length - 1)" @click="scrollTo('bottom')" class="w-9 h-9 rounded-lg bg-slate-800/80 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-lg transition-all hover:bg-primary hover:text-white shrink-0" title="Bottom">
+                                <i class="fas fa-arrow-down"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="lg:col-span-8 space-y-6">
+            <div class="min-w-0 flex-1 space-y-6">
                 <div v-for="(userGroups, userId) in config" :key="userId" :id="'user-'+userId" class="bg-card border border-border rounded-xl p-6 shadow-lg relative transition-all mb-6">
-                    
                     <div class="flex flex-col gap-4 mb-6">
                         <div class="flex items-center justify-between w-full border-b border-white/5 pb-2">
                             <div class="flex items-center gap-3 flex-1 min-w-0">
                                 <i class="fas fa-id-badge text-slate-500 text-xl"></i>
-                                <input type="text" :value="userId" @change="renameUser(userId, $event.target.value)" 
+                                <input type="text" :value="userId" @change="renameUser(userId, $event.target.value)"
                                        class="h-10 px-2 rounded bg-slate-800 font-bold text-primary text-sm uppercase w-full max-w-[240px] text-left truncate border-none shadow-inner"
                                        placeholder="NAME">
                             </div>
+
                             <button @click="deleteUser(userId)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-full transition-all">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                         </div>
-                        
+
                         <div class="flex flex-col items-center justify-center gap-2 py-4 bg-slate-900/30 rounded-xl border border-white/5 border-dashed">
                             <a :href="getJumpUrl(userId)" target="_blank" class="text-lg font-mono text-blue-400 hover:text-blue-300 transition-all transform hover:scale-105 flex items-center gap-2 px-6 py-2 bg-blue-500/10 rounded-full border border-blue-500/20 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/20">
                                 <i class="fas fa-rocket"></i>
                                 <span>?id={{ userId }}</span>
                             </a>
+
                             <button @click="copyEndpoint(userId)" class="text-xs text-slate-500 hover:text-primary transition-colors flex items-center gap-1 mt-1">
-                                <i class="fas" :class="copyStatus[userId] ? 'fa-check text-green-400' : 'fa-copy'"></i> 
+                                <i class="fas" :class="copyStatus[userId] ? 'fa-check text-green-400' : 'fa-copy'"></i>
                                 {{ copyStatus[userId] ? 'Copied' : 'Copy Link' }}
                             </button>
                         </div>
@@ -117,18 +149,22 @@
                             <div class="flex justify-between items-center mb-3 border-b border-white/5 pb-2">
                                 <div class="flex items-center gap-2 flex-1">
                                     <i class="fas fa-folder text-slate-600 text-xs"></i>
-                                    <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)" 
+                                    <input type="text" :value="groupName" @change="renameGroup(userId, groupName, $event.target.value)"
                                            class="bg-transparent text-xs font-bold text-slate-400 uppercase w-full outline-none focus:text-primary font-mono placeholder-slate-600">
                                 </div>
+
                                 <div class="flex items-center gap-2">
-                                    <button @click="toggleGroupProtocol(userId, groupName)" 
+                                    <button @click="toggleGroupProtocol(userId, groupName)"
                                             :class="getGroupStatusClass(links)"
                                             class="px-2 py-0.5 font-bold text-[9px] rounded border transition-all hover:bg-white/5 uppercase">
                                         {{ getGroupStatusLabel(links) }}
                                     </button>
+
                                     <button @click="addLink(userId, groupName)" :disabled="Object.keys(links).length >= 20" class="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400 hover:text-white transition-all disabled:opacity-20 flex items-center gap-1">
-                                        <i class="fas fa-plus"></i> Link
+                                        <i class="fas fa-plus"></i>
+                                        Link
                                     </button>
+
                                     <button @click="deleteGroup(userId, groupName)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-rose-400 transition-colors">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -136,56 +172,56 @@
                             </div>
 
                             <div class="space-y-2">
-                                <div v-for="(url, name) in links" :key="name" class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-1 group/item">
+                                <div v-for="(url, name) in links" :key="name" class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-1 group-hover-item">
                                     <div class="flex items-center gap-1 w-full sm:w-auto">
-                                        <button @click="toggleSingleProtocol(userId, groupName, name)" 
+                                        <button @click="toggleSingleProtocol(userId, groupName, name)"
                                                 :class="url.startsWith('https') ? 'text-primary border-primary/40' : 'text-green-500 border-green-500/50'"
                                                 class="w-14 h-6 shrink-0 text-[8px] font-black rounded border transition-all hover:bg-white/5 text-center">
                                             {{ url.startsWith('https') ? 'HTTPS' : 'HTTP' }}
                                         </button>
-                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)" 
-                                               class="w-24 shrink-0 bg-slate-900 rounded px-2 py-1 text-xs text-slate-300 font-mono focus:text-primary"
-                                               style="min-width: 90px;">
-                                        <a :href="url" target="_blank" class="text-slate-600 hover:text-primary flex items-center shrink-0 w-8 justify-center transition-colors">
-                                            <i class="fas fa-external-link-alt text-xs"></i>
+
+                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)"
+                                               class="w-48 shrink-0 bg-slate-900 rounded px-2 py-1 text-xs text-slate-300 font-mono focus:text-primary"
+                                               style="min-width: 180px;">
+
+                                        <a :href="url" target="_blank" class="text-rose-200 hover:text-white flex items-center shrink-0 min-w-[64px] h-8 px-3 justify-center gap-1 rounded bg-rose-700/80 hover:bg-rose-600 transition-colors">
+                                            <i class="fas fa-external-link-alt text-xs"></i><span class="text-[11px] font-mono uppercase">Go</span>
                                         </a>
-                                        <button @click="copyFullUrl(url, userId, groupName, name)" 
+
+                                        <button @click="copyFullUrl(url, userId, groupName, name)"
                                                 class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-primary transition-colors bg-slate-800/50 rounded shrink-0">
                                             <i class="fas" :class="copyItemStatus[userId+groupName+name] ? 'fa-check text-green-400' : 'fa-copy'"></i>
                                         </button>
+
                                         <div class="flex-1 sm:hidden"></div>
+
                                         <button @click="deleteLink(userId, groupName, name)" class="text-slate-600 hover:text-rose-400 px-2 sm:hidden">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </div>
-                                    <input type="text" :value="stripProtocol(url)" @input="updateUrl(userId, groupName, name, $event.target.value)" 
+
+                                    <input type="text" :value="stripProtocol(url)" @input="updateUrl(userId, groupName, name, $event.target.value)"
                                            class="w-full sm:flex-1 bg-slate-900 rounded px-2 py-1.5 sm:py-1 text-xs font-mono text-primary truncate focus:bg-slate-800 transition-colors">
-                                    <button @click="deleteLink(userId, groupName, name)" class="hidden sm:flex w-6 h-6 items-center justify-center text-slate-600 hover:text-rose-400 opacity-0 group-hover/item:opacity-100 transition-all">
+
+                                    <button @click="deleteLink(userId, groupName, name)" class="pc-delete hidden sm:flex w-6 h-6 items-center justify-center text-slate-600 hover:text-rose-400 opacity-0 transition-all">
                                         <i class="fas fa-times"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
+
                         <button @click="addGroup(userId)" :disabled="Object.keys(userGroups).length >= 20" class="w-full py-2 border border-dashed border-slate-700 text-slate-500 hover:text-primary hover:border-primary rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-20 flex items-center justify-center gap-2">
-                            <i class="fas fa-layer-group"></i> New Group
+                            <i class="fas fa-layer-group"></i>
+                            New Group
                         </button>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div v-if="Object.keys(config).length === 0" class="flex flex-col items-center justify-center mt-20 text-slate-500 gap-4">
+        <div v-cloak v-else class="flex flex-col items-center justify-center mt-20 text-slate-500 gap-4">
              <div class="text-5xl opacity-20"><i class="fas fa-code-branch"></i></div>
              <div class="text-sm">{{ tokenInput ? 'Connecting to GitHub...' : 'Waiting for Token input...' }}</div>
-        </div>
-
-        <div v-cloak class="fixed bottom-6 right-6 flex flex-col gap-2 z-50">
-            <button @click="scrollTo('top')" class="w-10 h-10 rounded-full bg-slate-800/80 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-xl transition-all hover:bg-primary hover:text-white">
-                <i class="fas fa-arrow-up"></i>
-            </button>
-            <button @click="scrollTo('bottom')" class="w-10 h-10 rounded-full bg-slate-800/80 backdrop-blur border border-white/10 flex items-center justify-center text-primary shadow-xl transition-all hover:bg-primary hover:text-white">
-                <i class="fas fa-arrow-down"></i>
-            </button>
         </div>
     </div>
 
