@@ -42,7 +42,7 @@
   "RAINY2": {
     "Default": {
       "board": "http://pm.rainplay.cn:53991/board/",
-      "iflow": "http://pm.rainplay.cn:49660/iflow/",
+      "iflow": "http://pm.rainplay.cn:53991/iflow/",
       "密码": "https://asd03002473760.1",
       "broswer": "http://pm.rainplay.cn:49660/browser/vnc.html"
     }
