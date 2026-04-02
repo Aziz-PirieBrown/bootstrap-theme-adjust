@@ -1,1 +1,8 @@
-{}
+{
+  "routes": [
+    {
+      "route": "/config.json",
+      "statusCode": 404
+    }
+  ]
+}

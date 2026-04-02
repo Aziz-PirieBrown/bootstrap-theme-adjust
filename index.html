@@ -227,13 +227,20 @@
 
     <script>
         // === ºËÐÄÅäÖÃ ===
-        const OWNER = '__REPO_OWNER__';
-        const REPO = '__REPO_NAME__';
-        const PATH = 'config.json';
-        
-        // Á´½ÓÐÞÕý
-        const PUBLIC_DOMAIN = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/go.html';
+        const CONFIG_API_PATH = '/api/config';
+        let OWNER = '';
+        let REPO = '';
+        let PUBLIC_DOMAIN = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/go.html';
         const CACHE_TOKEN_KEY = 'NEXUS_GH_TOKEN_V2';
+
+        const loadRuntimeConfig = async () => {
+            const res = await fetch(`${CONFIG_API_PATH}?t=${Date.now()}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error('Runtime config load failed');
+            const runtimeConfig = await res.json();
+            OWNER = runtimeConfig.owner || '';
+            REPO = runtimeConfig.repo || '';
+            PUBLIC_DOMAIN = runtimeConfig.publicDomain || PUBLIC_DOMAIN;
+        };
         
         const { createApp, ref, onMounted, watch } = Vue;
         
@@ -306,7 +313,7 @@
                     }
                     statusText.value = 'Syncing...'; statusColor.value = 'bg-blue-500';
                     try {
-                        const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}?t=${Date.now()}`;
+                        const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/config.json?t=${Date.now()}`;
                         const res = await fetch(url, { headers: { 'Authorization': `token ${tokenInput.value}` } });
                         
                         if (res.status === 404) {
@@ -345,7 +352,7 @@
                             sha: currentSha
                         };
 
-                        const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`, {
+                        const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/config.json`, {
                             method: 'PUT',
                             headers: { 
                                 'Authorization': `token ${tokenInput.value}`,
@@ -464,7 +471,14 @@
                     timer = setTimeout(saveConfig, 2000);
                 }, { deep: true });
 
-                onMounted(() => {
+                onMounted(async () => {
+                    try {
+                        await loadRuntimeConfig();
+                    } catch (e) {
+                        statusText.value = 'Config Error';
+                        statusColor.value = 'bg-red-500';
+                        return;
+                    }
                     const cachedToken = localStorage.getItem(CACHE_TOKEN_KEY);
                     if (cachedToken) {
                         tokenInput.value = cachedToken;

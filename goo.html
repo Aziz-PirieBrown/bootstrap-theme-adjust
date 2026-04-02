@@ -44,9 +44,9 @@
     const loader = document.getElementById('loader');
     const app = document.getElementById('app');
 
-    const owner = "__REPO_OWNER__";
-    const repo = "__REPO_NAME__";
-    const path = "config.json";
+    let owner = "";
+    let repo = "";
+    const configApiPath = "/api/config";
 
     if (!id) {
         window.location.replace("./index.html");
@@ -55,22 +55,27 @@
 
     const token = localStorage.getItem('NEXUS_GH_TOKEN_V2');
 
-    async function fetchConfig() {
-        try {
-            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?v=${Date.now()}`;
-            const headers = token ? { Authorization: `token ${token}` } : {};
-            const res = await fetch(apiUrl, { headers });
-            if (!res.ok) throw new Error("API 请求失败");
-            const data = await res.json();
-            return JSON.parse(decodeURIComponent(escape(atob(data.content))));
-        } catch (e) {
-            const fallback = await fetch(`./config.json?v=${Date.now()}`);
-            return await fallback.json();
-        }
+    async function loadRuntimeConfig() {
+        const res = await fetch(`${configApiPath}?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('运行时配置加载失败');
+        const runtimeConfig = await res.json();
+        owner = runtimeConfig.owner || '';
+        repo = runtimeConfig.repo || '';
+        return runtimeConfig;
+    }
+
+    async function fetchConfigFromGitHub() {
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/config.json?v=${Date.now()}`;
+        const headers = token ? { Authorization: `token ${token}` } : {};
+        const res = await fetch(apiUrl, { headers });
+        if (!res.ok) throw new Error("API 请求失败");
+        const data = await res.json();
+        return JSON.parse(decodeURIComponent(escape(atob(data.content))));
     }
 
     try {
-        const config = await fetchConfig();
+        const runtimeConfig = await loadRuntimeConfig();
+        const config = token ? await fetchConfigFromGitHub() : (runtimeConfig.config || {});
         const userData = config[id];
 
         if (!userData) {
