@@ -47,6 +47,24 @@
     let owner = "";
     let repo = "";
     const configApiPath = "/api/config";
+    const configFilePath = 'config.secure.json';
+    const configCipherKey = 'NEXUS_LITE_2026';
+
+    const utf8Encode = (str) => new TextEncoder().encode(str);
+    const utf8Decode = (buf) => new TextDecoder().decode(buf);
+    const xorBytes = (inputBytes, keyText) => {
+        const keyBytes = utf8Encode(keyText);
+        const out = new Uint8Array(inputBytes.length);
+        for (let i = 0; i < inputBytes.length; i++) out[i] = inputBytes[i] ^ keyBytes[i % keyBytes.length];
+        return out;
+    };
+    const base64ToBytes = (base64) => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const decryptConfigPayload = (payload) => {
+        if (!payload || typeof payload !== 'object') return payload || {};
+        if (payload.alg !== 'xor-base64' || !payload.data) return payload;
+        const decrypted = xorBytes(base64ToBytes(payload.data), configCipherKey);
+        return JSON.parse(utf8Decode(decrypted));
+    };
 
     if (!id) {
         window.location.replace("./index.html");
@@ -65,17 +83,17 @@
     }
 
     async function fetchConfigFromGitHub() {
-        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/config.json?v=${Date.now()}`;
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${configFilePath}?v=${Date.now()}`;
         const headers = token ? { Authorization: `token ${token}` } : {};
         const res = await fetch(apiUrl, { headers });
         if (!res.ok) throw new Error("API 请求失败");
         const data = await res.json();
-        return JSON.parse(decodeURIComponent(escape(atob(data.content))));
+        return decryptConfigPayload(JSON.parse(decodeURIComponent(escape(atob(data.content)))));
     }
 
     try {
         const runtimeConfig = await loadRuntimeConfig();
-        const config = token ? await fetchConfigFromGitHub() : (runtimeConfig.config || {});
+        const config = token ? await fetchConfigFromGitHub() : decryptConfigPayload(runtimeConfig.config || {});
         const userData = config[id];
 
         if (!userData) {

@@ -60,6 +60,18 @@
                 <i class="fas" :class="isSaving ? 'fa-spinner fa-spin' : 'fa-sync-alt'"></i>
                 {{ isSaving ? 'SAVING...' : 'SYNC' }}
             </button>
+
+            <div class="flex items-center gap-2 shrink-0">
+                <input ref="importInput" type="file" accept="application/json,.json" class="hidden" @change="importJson">
+                <button v-cloak @click="triggerImport" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all font-bold text-sm shadow-lg flex items-center gap-2">
+                    <i class="fas fa-file-import"></i>
+                    IMPORT
+                </button>
+                <button v-cloak @click="exportJson" :disabled="Object.keys(config).length === 0" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition-all font-bold text-sm shadow-lg disabled:opacity-50 flex items-center gap-2">
+                    <i class="fas fa-file-export"></i>
+                    EXPORT
+                </button>
+            </div>
         </header>
 
         <div v-cloak v-if="Object.keys(config).length > 0" class="flex flex-wrap gap-2 mb-8 bg-slate-900/40 p-3 rounded-xl border border-border/50">
@@ -196,6 +208,38 @@
         let REPO = '';
         let PUBLIC_DOMAIN = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html';
         const CACHE_TOKEN_KEY = 'NEXUS_GH_TOKEN_V2';
+        const CONFIG_FILE_PATH = 'config.secure.json';
+        const CONFIG_CIPHER_KEY = 'NEXUS_LITE_2026';
+
+        const utf8Encode = (str) => new TextEncoder().encode(str);
+        const utf8Decode = (buf) => new TextDecoder().decode(buf);
+        const xorBytes = (inputBytes, keyText) => {
+            const keyBytes = utf8Encode(keyText);
+            const out = new Uint8Array(inputBytes.length);
+            for (let i = 0; i < inputBytes.length; i++) out[i] = inputBytes[i] ^ keyBytes[i % keyBytes.length];
+            return out;
+        };
+        const bytesToBase64 = (bytes) => {
+            let binary = '';
+            bytes.forEach(b => binary += String.fromCharCode(b));
+            return btoa(binary);
+        };
+        const base64ToBytes = (base64) => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        const encryptConfigPayload = (data) => {
+            const json = JSON.stringify(data, null, 2);
+            const encrypted = xorBytes(utf8Encode(json), CONFIG_CIPHER_KEY);
+            return {
+                v: 1,
+                alg: 'xor-base64',
+                data: bytesToBase64(encrypted)
+            };
+        };
+        const decryptConfigPayload = (payload) => {
+            if (!payload || typeof payload !== 'object') return payload || {};
+            if (payload.alg !== 'xor-base64' || !payload.data) return payload;
+            const decrypted = xorBytes(base64ToBytes(payload.data), CONFIG_CIPHER_KEY);
+            return JSON.parse(utf8Decode(decrypted));
+        };
 
         const loadRuntimeConfig = async () => {
             const res = await fetch(`${CONFIG_API_PATH}?t=${Date.now()}`, { cache: 'no-store' });
@@ -218,6 +262,7 @@
                 const copyStatus = ref({});
                 const copyItemStatus = ref({});
                 const tokenInput = ref('');
+                const importInput = ref(null);
                 let currentSha = '';
                 let timer = null;
 
@@ -277,7 +322,7 @@
                     }
                     statusText.value = 'Syncing...'; statusColor.value = 'bg-blue-500';
                     try {
-                        const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/config.json?t=${Date.now()}`;
+                        const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${CONFIG_FILE_PATH}?t=${Date.now()}`;
                         const res = await fetch(url, { headers: { 'Authorization': `token ${tokenInput.value}` } });
                         
                         if (res.status === 404) {
@@ -290,7 +335,7 @@
                             const json = await res.json();
                             currentSha = json.sha;
                             const content = decodeURIComponent(escape(atob(json.content)));
-                            config.value = JSON.parse(content); 
+                            config.value = decryptConfigPayload(JSON.parse(content)); 
                             statusText.value = 'Synced'; statusColor.value = 'bg-green-400';
                         }
                     } catch (e) { 
@@ -307,7 +352,8 @@
                         // ±£´æÇ°Ö´ÐÐÇåÀí (Auto Cleanup)
                         const cleanData = sanitize(config.value);
                         
-                        const contentStr = JSON.stringify(cleanData, null, 2);
+                        const securePayload = encryptConfigPayload(cleanData);
+                        const contentStr = JSON.stringify(securePayload, null, 2);
                         const contentB64 = btoa(unescape(encodeURIComponent(contentStr)));
                         
                         const body = {
@@ -316,7 +362,7 @@
                             sha: currentSha
                         };
 
-                        const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/config.json`, {
+                        const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${CONFIG_FILE_PATH}`, {
                             method: 'PUT',
                             headers: { 
                                 'Authorization': `token ${tokenInput.value}`,
@@ -348,6 +394,36 @@
                      if(statusText.value === 'Synced') fetchConfig();
                      else saveConfig();
                 }
+
+                const triggerImport = () => {
+                    importInput.value?.click();
+                };
+
+                const importJson = async (event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    try {
+                        const text = await file.text();
+                        config.value = sanitize(JSON.parse(text));
+                        statusText.value = 'Imported';
+                        statusColor.value = 'bg-green-400';
+                    } catch (e) {
+                        statusText.value = 'Import Error';
+                        statusColor.value = 'bg-red-500';
+                    } finally {
+                        event.target.value = '';
+                    }
+                };
+
+                const exportJson = () => {
+                    const blob = new Blob([JSON.stringify(sanitize(config.value), null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'config-export.json';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                };
 
                 // --- ½»»¥Âß¼­ ---
                 const stripProtocol = (url) => url.replace(/^https?:\/\//, '');
@@ -451,8 +527,8 @@
                 });
 
                 return { 
-                    config, newUserId, isSaving, statusText, statusColor, copyStatus, copyItemStatus, tokenInput,
-                    saveConfig, saveToken, manualSync,
+                    config, newUserId, isSaving, statusText, statusColor, copyStatus, copyItemStatus, tokenInput, importInput,
+                    saveConfig, saveToken, manualSync, triggerImport, importJson, exportJson,
                     addUser, deleteUser, addLink, deleteLink, renameUser, renameGroup, renameLink, 
                     scrollTo, scrollToUser, addGroup, deleteGroup, toggleSingleProtocol, toggleGroupProtocol, 
                     getGroupStatusClass, getGroupStatusLabel, stripProtocol, updateUrl, copyFullUrl, copyEndpoint, getJumpUrl 
