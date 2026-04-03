@@ -5,13 +5,9 @@ app.http('config', {
   authLevel: 'anonymous',
   route: 'config',
   handler: async (request, context) => {
-    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
-    const proto = request.headers.get('x-forwarded-proto') || 'https';
     const owner = 'Aziz-PirieBrown';
     const repo = 'bootstrap-theme-adjust';
-    const publicDomain = host
-      ? `${proto}://${host}/go.html`
-      : 'https://yellow-sea-0466b3200.6.azurestaticapps.net/go.html';
+    const publicDomain = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/go.html';
 
     let config = {};
     try {
