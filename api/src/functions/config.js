@@ -10,8 +10,8 @@ app.http('config', {
     const owner = 'Aziz-PirieBrown';
     const repo = 'bootstrap-theme-adjust';
     const publicDomain = host
-      ? `${proto}://${host}/goo.html`
-      : 'https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html';
+      ? `${proto}://${host}/go.html`
+      : 'https://yellow-sea-0466b3200.6.azurestaticapps.net/go.html';
 
     let config = {};
     try {
