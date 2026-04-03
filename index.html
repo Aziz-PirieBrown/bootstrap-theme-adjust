@@ -244,7 +244,7 @@
         const CONFIG_API_PATH = '/api/config';
         let OWNER = '';
         let REPO = '';
-        let PUBLIC_DOMAIN = 'https://forever302free-h0d9bvemhaaffzhk.southeastasia-01.azurewebsites.net/go';
+        let PUBLIC_DOMAIN = new URL('/goo.html', window.location.origin).href;
         const CACHE_TOKEN_KEY = 'NEXUS_GH_TOKEN_V2';
         const CONFIG_FILE_PATH = 'dsfdsf234b235';
         const CONFIG_CIPHER_KEY = 'NEXUS_LITE_2026';
@@ -285,7 +285,7 @@
             const runtimeConfig = await res.json();
             OWNER = runtimeConfig.owner || '';
             REPO = runtimeConfig.repo || '';
-            PUBLIC_DOMAIN = runtimeConfig.publicDomain || PUBLIC_DOMAIN;
+            PUBLIC_DOMAIN = new URL('/goo.html', window.location.origin).href;
         };
         
         const { createApp, ref, onMounted, watch } = Vue;
