@@ -80,17 +80,7 @@
                 {{ isSaving ? 'SAVING...' : 'SYNC' }}
             </button>
 
-            <div class="flex items-center gap-2 shrink-0">
-                <input ref="importInput" type="file" accept="application/json,.json" class="hidden" @change="importJson">
-                <button v-cloak @click="triggerImport" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all font-bold text-sm shadow-lg flex items-center gap-2">
-                    <i class="fas fa-file-import"></i>
-                    IMPORT
-                </button>
-                <button v-cloak @click="exportJson" :disabled="Object.keys(config).length === 0" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition-all font-bold text-sm shadow-lg disabled:opacity-50 flex items-center gap-2">
-                    <i class="fas fa-file-export"></i>
-                    EXPORT
-                </button>
-            </div>
+
         </header>
 
         <div v-cloak class="mb-8">
@@ -100,6 +90,18 @@
                         <i class="fas fa-plus"></i>
                     </button>
                     <input v-model="newUserId" @keyup.enter="addUser" type="text" placeholder="new user" class="w-full bg-slate-900 rounded-lg px-3 py-2 text-sm text-white font-mono">
+                </div>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <input ref="importInput" type="file" accept="application/json,.json" class="hidden" @change="importJson">
+                    <button v-cloak @click="triggerImport" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all font-bold text-sm shadow-lg flex items-center gap-2">
+                        <i class="fas fa-file-import"></i>
+                        IMPORT JSON
+                    </button>
+                    <button v-cloak @click="exportJson" :disabled="Object.keys(config).length === 0" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition-all font-bold text-sm shadow-lg disabled:opacity-50 flex items-center gap-2">
+                        <i class="fas fa-file-export"></i>
+                        EXPORT JSON
+                    </button>
+                    <div class="text-[11px] text-slate-500 flex items-center">Import replaces all current data</div>
                 </div>
             </div>
         </div>
@@ -435,13 +437,95 @@
                     importInput.value?.click();
                 };
 
+                const normalizeImportedConfig = (input) => {
+                    const out = {};
+
+                    const pushLink = (userId, groupName, linkName, url) => {
+                        const cleanUser = String(userId || '').trim();
+                        const cleanGroup = String(groupName || 'Imported').trim() || 'Imported';
+                        const cleanName = String(linkName || 'Link').trim() || 'Link';
+                        const cleanUrl = String(url || '').trim();
+                        if (!cleanUser || !cleanUrl) return;
+                        if (!/^https?:\/\//i.test(cleanUrl)) return;
+                        if (!out[cleanUser]) out[cleanUser] = {};
+                        if (!out[cleanUser][cleanGroup]) out[cleanUser][cleanGroup] = {};
+                        let finalName = cleanName;
+                        let i = 2;
+                        while (out[cleanUser][cleanGroup][finalName]) {
+                            finalName = `${cleanName} ${i++}`;
+                        }
+                        out[cleanUser][cleanGroup][finalName] = cleanUrl;
+                    };
+
+                    if (Array.isArray(input)) {
+                        input.forEach((item, index) => {
+                            if (!item || typeof item !== 'object') return;
+                            const userId = item.userId || item.user || item.id || item.name || `Imported-${index + 1}`;
+                            if (item.url) {
+                                pushLink(userId, item.group || item.groupName || 'Imported', item.linkName || item.title || item.name || 'Link 1', item.url);
+                                return;
+                            }
+                            const groups = item.groups || item.data || item.links || item.items;
+                            if (groups && typeof groups === 'object') {
+                                Object.entries(groups).forEach(([groupName, links]) => {
+                                    if (Array.isArray(links)) {
+                                        links.forEach((entry, idx) => {
+                                            if (typeof entry === 'string') pushLink(userId, groupName, `Link ${idx + 1}`, entry);
+                                            else if (entry && typeof entry === 'object') pushLink(userId, groupName, entry.name || entry.title || `Link ${idx + 1}`, entry.url || entry.href || entry.link);
+                                        });
+                                    } else if (links && typeof links === 'object') {
+                                        Object.entries(links).forEach(([linkName, url]) => {
+                                            if (typeof url === 'string') pushLink(userId, groupName, linkName, url);
+                                            else if (url && typeof url === 'object') pushLink(userId, groupName, linkName || url.name || 'Link', url.url || url.href || url.link);
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                        return sanitize(out);
+                    }
+
+                    if (input && typeof input === 'object') {
+                        Object.entries(input).forEach(([userId, groups]) => {
+                            if (typeof groups === 'string') {
+                                pushLink(userId, 'Imported', 'Link 1', groups);
+                                return;
+                            }
+                            if (!groups || typeof groups !== 'object') return;
+                            Object.entries(groups).forEach(([groupName, links]) => {
+                                if (typeof links === 'string') {
+                                    pushLink(userId, groupName, 'Link 1', links);
+                                    return;
+                                }
+                                if (Array.isArray(links)) {
+                                    links.forEach((entry, idx) => {
+                                        if (typeof entry === 'string') pushLink(userId, groupName, `Link ${idx + 1}`, entry);
+                                        else if (entry && typeof entry === 'object') pushLink(userId, groupName, entry.name || entry.title || `Link ${idx + 1}`, entry.url || entry.href || entry.link);
+                                    });
+                                    return;
+                                }
+                                if (links && typeof links === 'object') {
+                                    Object.entries(links).forEach(([linkName, url]) => {
+                                        if (typeof url === 'string') pushLink(userId, groupName, linkName, url);
+                                        else if (url && typeof url === 'object') pushLink(userId, groupName, linkName || url.name || 'Link', url.url || url.href || url.link);
+                                    });
+                                }
+                            });
+                        });
+                    }
+
+                    return sanitize(out);
+                };
+
                 const importJson = async (event) => {
                     const file = event.target.files?.[0];
                     if (!file) return;
                     try {
                         const text = await file.text();
-                        config.value = sanitize(JSON.parse(text));
-                        statusText.value = 'Imported';
+                        const parsed = JSON.parse(text);
+                        const normalized = normalizeImportedConfig(parsed);
+                        config.value = normalized;
+                        statusText.value = Object.keys(normalized).length ? 'Imported' : 'Imported Empty';
                         statusColor.value = 'bg-green-400';
                     } catch (e) {
                         statusText.value = 'Import Error';
