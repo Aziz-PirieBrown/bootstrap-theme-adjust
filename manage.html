@@ -210,6 +210,7 @@
         let REPO = '';
         let PUBLIC_DOMAIN = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html';
         const CACHE_TOKEN_KEY = 'NEXUS_GH_TOKEN_V2';
+        const CONFIG_BACKUP_KEY = 'NEXUS_CONFIG_IMPORT_BACKUPS_V1';
         const CONFIG_FILE_PATH = 'config.secure.json';
         const CONFIG_CIPHER_KEY = 'NEXUS_LITE_2026';
 
@@ -401,6 +402,27 @@
                     importInput.value?.click();
                 };
 
+
+                const loadBackups = () => {
+                    try {
+                        return JSON.parse(localStorage.getItem(CONFIG_BACKUP_KEY) || '[]');
+                    } catch {
+                        return [];
+                    }
+                };
+
+                const saveBackupSnapshot = (label, data) => {
+                    try {
+                        const backups = loadBackups();
+                        backups.unshift({
+                            label,
+                            ts: new Date().toISOString(),
+                            data: sanitize(JSON.parse(JSON.stringify(data || {})))
+                        });
+                        localStorage.setItem(CONFIG_BACKUP_KEY, JSON.stringify(backups.slice(0, 3)));
+                    } catch {}
+                };
+
                 const normalizeImportedConfig = (input) => {
                     const out = {};
 
@@ -485,10 +507,12 @@
                     const file = event.target.files?.[0];
                     if (!file) return;
                     try {
+                        saveBackupSnapshot(`before-import:${file.name}`, config.value);
                         const text = await file.text();
                         const parsed = JSON.parse(text);
                         const normalized = normalizeImportedConfig(parsed);
                         config.value = normalized;
+                        statusText.value = Object.keys(normalized).length ? 'Imported';
                         statusText.value = Object.keys(normalized).length ? 'Imported' : 'Imported Empty';
                         statusColor.value = 'bg-green-400';
                     } catch (e) {
