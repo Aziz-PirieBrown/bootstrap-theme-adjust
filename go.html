@@ -405,14 +405,9 @@
             }
     
             async function saveShortlinkData(data) {
-                const token = getToken();
-                persistToken(token);
-    
-                if (!token) {
-                    return jsonResponse(false, null, "GitHub token required", {
-                        source: "github",
-                    });
-                }
+                return jsonResponse(false, null, "Deprecated flow: write disabled", {
+                    source: "go:readonly",
+                });
     
                 if (data === undefined || data === null || data === "") {
                     return jsonResponse(false, null, "No input data", {
@@ -678,38 +673,12 @@
             }
 
             async function handleManualSave() {
-                const payloadText = new URLSearchParams(window.location.search).get("data") || "";
-                if (!payloadText) {
-                    const result = jsonResponse(false, null, "No input data", {
-                        inputPreview: "",
-                        length: 0,
-                    });
-                    updateStatus(result, "Save");
-                    updateMetrics(result.meta, new URLSearchParams(window.location.search).get("id") || "");
-                    updatePreview("Input preview", result.meta.inputPreview);
-                    renderUserLinks("", []);
-                    return;
-                }
-
-                let parsed;
-                try {
-                    parsed = JSON.parse(payloadText);
-                } catch (error) {
-                    const result = jsonResponse(false, null, `JSON decode error: ${error.message}`, {
-                        inputPreview: getInputPreview(payloadText),
-                        length: payloadText.length,
-                    });
-                    updateStatus(result, "Save");
-                    updateMetrics(result.meta, new URLSearchParams(window.location.search).get("id") || "");
-                    updatePreview("Input preview", result.meta.inputPreview);
-                    renderUserLinks("", []);
-                    return;
-                }
-
-                const result = await saveShortlinkData(parsed);
+                const result = jsonResponse(false, null, "Deprecated flow: write disabled", {
+                    source: "go:readonly",
+                });
                 updateStatus(result, "Save");
                 updateMetrics(result.meta, new URLSearchParams(window.location.search).get("id") || "");
-                updatePreview(result.success ? "Saved data preview" : "Input preview", result.meta?.inputPreview || parsed);
+                updatePreview("Write disabled", "This old go flow is now read-only and will not commit to GitHub.");
                 renderUserLinks("", []);
             }
 
@@ -726,7 +695,7 @@
                 currentToken = cachedToken;
 
                 document.getElementById("loadBtn").addEventListener("click", handleManualLoad);
-                document.getElementById("saveBtn").addEventListener("click", handleManualSave);
+                // save disabled for deprecated go flow
 
                 document.getElementById("status").className = "status-bar info";
                 document.getElementById("status").textContent = "Initializing...";
@@ -784,7 +753,7 @@
                         <div class="card-label">Actions</div>
                         <div class="card-value">
                             <button id="loadBtn" style="margin-right:8px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;">Load</button>
-                            <button id="saveBtn" style="background:#047857;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;">Save</button>
+                            <button id="saveBtn" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 12px;cursor:not-allowed;opacity:.7;" disabled>Save Disabled</button>
                         </div>
                     </div>
                     <div class="card">
