@@ -210,7 +210,6 @@
         let REPO = '';
         let PUBLIC_DOMAIN = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html';
         const CACHE_TOKEN_KEY = 'NEXUS_GH_TOKEN_V2';
-        const CONFIG_BACKUP_KEY = 'NEXUS_CONFIG_IMPORT_BACKUPS_V1';
         const CONFIG_FILE_PATH = 'config.secure.json';
         const CONFIG_CIPHER_KEY = 'NEXUS_LITE_2026';
 
@@ -403,24 +402,61 @@
                 };
 
 
-                const loadBackups = () => {
-                    try {
-                        return JSON.parse(localStorage.getItem(CONFIG_BACKUP_KEY) || '[]');
-                    } catch {
-                        return [];
-                    }
+                const getBackupFilePath = (index) => `backups/config.backup.${index}.secure.json`;
+
+                const fetchRepoFile = async (path) => {
+                    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?t=${Date.now()}`, {
+                        headers: {
+                            'Authorization': `token ${tokenInput.value}`,
+                            'Accept': 'application/vnd.github+json'
+                        }
+                    });
+                    if (res.status === 404) return null;
+                    if (!res.ok) throw new Error(`Fetch failed: ${path}`);
+                    return await res.json();
                 };
 
-                const saveBackupSnapshot = (label, data) => {
-                    try {
-                        const backups = loadBackups();
-                        backups.unshift({
-                            label,
-                            ts: new Date().toISOString(),
-                            data: sanitize(JSON.parse(JSON.stringify(data || {})))
-                        });
-                        localStorage.setItem(CONFIG_BACKUP_KEY, JSON.stringify(backups.slice(0, 3)));
-                    } catch {}
+                const putRepoFile = async (path, payload, message, sha = undefined) => {
+                    const contentStr = JSON.stringify(payload, null, 2);
+                    const body = {
+                        message,
+                        content: btoa(unescape(encodeURIComponent(contentStr)))
+                    };
+                    if (sha) body.sha = sha;
+                    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${tokenInput.value}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/vnd.github+json'
+                        },
+                        body: JSON.stringify(body)
+                    });
+                    if (!res.ok) throw new Error(`Backup save failed: ${path}`);
+                    return await res.json();
+                };
+
+                const saveBackupSnapshot = async (label, data) => {
+                    if (!tokenInput.value) return;
+                    const cleanData = sanitize(JSON.parse(JSON.stringify(data || {})));
+                    const securePayload = encryptConfigPayload({
+                        label,
+                        ts: new Date().toISOString(),
+                        data: cleanData
+                    });
+
+                    for (let i = 3; i >= 1; i--) {
+                        const currentPath = getBackupFilePath(i);
+                        const nextPath = getBackupFilePath(i + 1);
+                        const file = await fetchRepoFile(currentPath);
+                        if (!file) continue;
+                        if (i === 3) continue;
+                        const content = decodeURIComponent(escape(atob(file.content || '')));
+                        await putRepoFile(nextPath, JSON.parse(content), `Rotate backup ${i} -> ${i + 1}`);
+                    }
+
+                    const firstFile = await fetchRepoFile(getBackupFilePath(1));
+                    await putRepoFile(getBackupFilePath(1), securePayload, `Backup before import: ${label}`, firstFile?.sha);
                 };
 
                 const normalizeImportedConfig = (input) => {
@@ -507,13 +543,12 @@
                     const file = event.target.files?.[0];
                     if (!file) return;
                     try {
-                        saveBackupSnapshot(`before-import:${file.name}`, config.value);
+                        await saveBackupSnapshot(`before-import:${file.name}`, config.value);
                         const text = await file.text();
                         const parsed = JSON.parse(text);
                         const normalized = normalizeImportedConfig(parsed);
                         config.value = normalized;
-                        statusText.value = Object.keys(normalized).length ? 'Imported';
-                        statusText.value = Object.keys(normalized).length ? 'Imported' : 'Imported Empty';
+                                                statusText.value = Object.keys(normalized).length ? 'Imported' : 'Imported Empty';
                         statusColor.value = 'bg-green-400';
                     } catch (e) {
                         statusText.value = 'Import Error';
