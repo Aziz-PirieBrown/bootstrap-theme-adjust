@@ -246,7 +246,7 @@
         let REPO = '';
         let PUBLIC_DOMAIN = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/go.html';
         const CACHE_TOKEN_KEY = 'NEXUS_GH_TOKEN_V2';
-        const CONFIG_FILE_PATH = 'config.secure.json';
+        const CONFIG_FILE_PATH = 'dsfdsf234b235';
         const CONFIG_CIPHER_KEY = 'NEXUS_LITE_2026';
 
         const utf8Encode = (str) => new TextEncoder().encode(str);
@@ -438,7 +438,13 @@
                 };
 
 
-                const getBackupFilePath = (index) => `backups/config.backup.${index}.secure.json`;
+                const getBackupTimestamp = () => {
+                    const now = new Date();
+                    const pad = (n) => String(n).padStart(2, '0');
+                    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+                };
+
+                const getBackupFilePath = (stamp = getBackupTimestamp()) => `backups/${CONFIG_FILE_PATH}-${stamp}`;
 
                 const fetchRepoFile = async (path) => {
                     const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?t=${Date.now()}`, {
@@ -450,6 +456,19 @@
                     if (res.status === 404) return null;
                     if (!res.ok) throw new Error(`Fetch failed: ${path}`);
                     return await res.json();
+                };
+
+                const listBackupFiles = async () => {
+                    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/backups?t=${Date.now()}`, {
+                        headers: {
+                            'Authorization': `token ${tokenInput.value}`,
+                            'Accept': 'application/vnd.github+json'
+                        }
+                    });
+                    if (res.status === 404) return [];
+                    if (!res.ok) throw new Error('Backup list failed');
+                    const items = await res.json();
+                    return (Array.isArray(items) ? items : []).filter(item => item && item.type === 'file' && item.name.startsWith(`${CONFIG_FILE_PATH}-`));
                 };
 
                 const putRepoFile = async (path, payload, message, sha = undefined) => {
@@ -472,27 +491,36 @@
                     return await res.json();
                 };
 
+                const deleteRepoFile = async (path, sha, message) => {
+                    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `token ${tokenInput.value}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/vnd.github+json'
+                        },
+                        body: JSON.stringify({ message, sha })
+                    });
+                    if (!res.ok) throw new Error(`Backup delete failed: ${path}`);
+                };
+
                 const saveBackupSnapshot = async (label, data) => {
                     if (!tokenInput.value) return;
                     const cleanData = sanitize(JSON.parse(JSON.stringify(data || {})));
+                    const stamp = getBackupTimestamp();
                     const securePayload = encryptConfigPayload({
                         label,
                         ts: new Date().toISOString(),
                         data: cleanData
                     });
 
-                    for (let i = 3; i >= 1; i--) {
-                        const currentPath = getBackupFilePath(i);
-                        const nextPath = getBackupFilePath(i + 1);
-                        const file = await fetchRepoFile(currentPath);
-                        if (!file) continue;
-                        if (i === 3) continue;
-                        const content = decodeURIComponent(escape(atob(file.content || '')));
-                        await putRepoFile(nextPath, JSON.parse(content), `Rotate backup ${i} -> ${i + 1}`);
-                    }
+                    await putRepoFile(getBackupFilePath(stamp), securePayload, `Backup before import: ${label}`);
 
-                    const firstFile = await fetchRepoFile(getBackupFilePath(1));
-                    await putRepoFile(getBackupFilePath(1), securePayload, `Backup before import: ${label}`, firstFile?.sha);
+                    const backups = await listBackupFiles();
+                    const sorted = backups.sort((a, b) => String(b.name).localeCompare(String(a.name)));
+                    for (const extra of sorted.slice(3)) {
+                        await deleteRepoFile(extra.path, extra.sha, `Prune old backup: ${extra.name}`);
+                    }
                 };
 
                 const normalizeImportedConfig = (input) => {
@@ -584,7 +612,7 @@
                         const parsed = JSON.parse(text);
                         const normalized = normalizeImportedConfig(parsed);
                         config.value = normalized;
-                                                statusText.value = Object.keys(normalized).length ? 'Imported' : 'Imported Empty';
+                        statusText.value = Object.keys(normalized).length ? 'Imported' : 'Imported Empty';
                         statusColor.value = 'bg-green-400';
                     } catch (e) {
                         statusText.value = 'Import Error';
