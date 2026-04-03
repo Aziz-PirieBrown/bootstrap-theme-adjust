@@ -208,7 +208,7 @@
         const CONFIG_API_PATH = '/api/config';
         let OWNER = '';
         let REPO = '';
-        let PUBLIC_DOMAIN = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html';
+        let PUBLIC_DOMAIN = new URL('/goo.html', window.location.origin).href;
         const CACHE_TOKEN_KEY = 'NEXUS_GH_TOKEN_V2';
         const CONFIG_FILE_PATH = 'dsfdsf234b235';
         const CONFIG_CIPHER_KEY = 'NEXUS_LITE_2026';
@@ -249,7 +249,7 @@
             const runtimeConfig = await res.json();
             OWNER = runtimeConfig.owner || '';
             REPO = runtimeConfig.repo || '';
-            PUBLIC_DOMAIN = runtimeConfig.publicDomain || PUBLIC_DOMAIN;
+            PUBLIC_DOMAIN = new URL('/goo.html', window.location.origin).href;
         };
         
         const { createApp, ref, onMounted, watch } = Vue;
