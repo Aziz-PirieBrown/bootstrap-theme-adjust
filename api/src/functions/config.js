@@ -7,7 +7,7 @@ app.http('config', {
   handler: async (request, context) => {
     const owner = 'Aziz-PirieBrown';
     const repo = 'bootstrap-theme-adjust';
-    const publicDomain = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/go.html';
+    const publicDomain = 'https://yellow-sea-0466b3200.6.azurestaticapps.net/goo.html';
 
     let config = {};
     try {
