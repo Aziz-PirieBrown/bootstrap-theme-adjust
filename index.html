@@ -425,7 +425,7 @@
                             localStorage.removeItem(CACHE_TOKEN_KEY);
                             throw new Error('Invalid Token');
                         }
-                        if (!res.ok) throw new Error(Save Failed: );
+                        if (!res.ok) throw new Error('Save Failed: ' + res.status);
                         
                         const resJson = await res.json();
                         currentSha = resJson.content.sha;
