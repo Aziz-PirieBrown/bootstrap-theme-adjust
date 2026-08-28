@@ -354,33 +354,36 @@
 
                 // --- GitHub API ---
                 const fetchConfig = async () => {
-                    if (!tokenInput.value) {
-                        statusText.value = 'Input Token'; statusColor.value = 'bg-yellow-500';
-                        return;
-                    }
                     statusText.value = 'Syncing...'; statusColor.value = 'bg-blue-500';
                     try {
                         const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${CONFIG_FILE_PATH}?t=${Date.now()}`;
-                        const res = await fetch(url, { headers: { 'Authorization': `token ${tokenInput.value}` } });
-                        
+                        const request = async (useToken) => {
+                            const headers = { 'Accept': 'application/vnd.github+json' };
+                            if (useToken && tokenInput.value) headers['Authorization'] = `token ${tokenInput.value}`;
+                            return await fetch(url, { headers, cache: 'no-store' });
+                        };
+                        let res = await request(!!tokenInput.value);
+                        if ((res.status === 401 || res.status === 403) && tokenInput.value) res = await request(false);
                         if (res.status === 404) {
-                            config.value = {}; 
+                            config.value = {};
                             currentSha = null;
-                            statusText.value = 'New Repo'; statusColor.value = 'bg-green-400';
+                            statusText.value = tokenInput.value ? 'New Repo' : 'Read Only';
+                            statusColor.value = 'bg-green-400';
                         } else if (!res.ok) {
-                            throw new Error('Auth Error');
+                            throw new Error(`GitHub read failed: ${res.status}`);
                         } else {
                             const json = await res.json();
                             currentSha = json.sha;
                             const content = decodeURIComponent(escape(atob(json.content)));
-                            config.value = decryptConfigPayload(JSON.parse(content)); 
-                            statusText.value = 'Synced'; statusColor.value = 'bg-green-400';
+                            config.value = decryptConfigPayload(JSON.parse(content));
+                            statusText.value = tokenInput.value ? 'Synced' : 'Read Only';
+                            statusColor.value = 'bg-green-400';
                         }
-                    } catch (e) { 
-                        statusText.value = 'Error'; statusColor.value = 'bg-red-500'; 
+                    } catch (e) {
+                        console.error('fetchConfig failed', e);
+                        statusText.value = 'Error'; statusColor.value = 'bg-red-500';
                     }
                 };
-
                 const saveConfig = async () => {
                     if (!tokenInput.value) return;
                     isSaving.value = true;
@@ -727,10 +730,8 @@
                         return;
                     }
                     const cachedToken = localStorage.getItem(CACHE_TOKEN_KEY);
-                    if (cachedToken) {
-                        tokenInput.value = cachedToken;
-                        fetchConfig();
-                    }
+                    if (cachedToken) tokenInput.value = cachedToken;
+                    fetchConfig();
                 });
 
                 return { 
