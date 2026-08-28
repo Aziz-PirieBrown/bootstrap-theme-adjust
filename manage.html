@@ -312,26 +312,34 @@
 
                 // --- GitHub API ---
                 const fetchConfig = async () => {
+                    if (!tokenInput.value) {
+                        config.value = {};
+                        currentSha = null;
+                        statusText.value = 'Input Token';
+                        statusColor.value = 'bg-yellow-500';
+                        return;
+                    }
                     isLoadingConfig = true;
                     statusText.value = 'Syncing...'; statusColor.value = 'bg-blue-500';
                     try {
                         const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${CONFIG_FILE_PATH}?t=${Date.now()}`;
-                        const request = async (useToken) => {
-                            const headers = { 'Accept': 'application/vnd.github+json' };
-                            if (useToken && tokenInput.value) headers['Authorization'] = `token ${tokenInput.value}`;
-                            return await fetch(url, { headers, cache: 'no-store' });
-                        };
-                        let res = await request(!!tokenInput.value);
-                        if ((res.status === 401 || res.status === 403) && tokenInput.value) {
-                            tokenInput.value = '';
+                        const res = await fetch(url, {
+                            headers: {
+                                'Authorization': `token ${tokenInput.value}`,
+                                'Accept': 'application/vnd.github+json'
+                            },
+                            cache: 'no-store'
+                        });
+                        if (res.status === 401 || res.status === 403) {
+                            config.value = {};
+                            currentSha = null;
                             localStorage.removeItem(CACHE_TOKEN_KEY);
-                            res = await request(false);
+                            throw new Error('Invalid Token');
                         }
                         if (res.status === 404) {
                             config.value = {};
                             currentSha = null;
-                            statusText.value = tokenInput.value ? 'New Repo' : 'Read Only';
-                            statusColor.value = 'bg-green-400';
+                            statusText.value = 'New Repo'; statusColor.value = 'bg-green-400';
                         } else if (!res.ok) {
                             throw new Error(`GitHub read failed: ${res.status}`);
                         } else {
@@ -339,12 +347,12 @@
                             currentSha = json.sha;
                             const content = decodeURIComponent(escape(atob(json.content)));
                             config.value = decryptConfigPayload(JSON.parse(content));
-                            statusText.value = tokenInput.value ? 'Synced' : 'Read Only';
-                            statusColor.value = 'bg-green-400';
+                            statusText.value = 'Synced'; statusColor.value = 'bg-green-400';
                         }
                     } catch (e) {
                         console.error('fetchConfig failed', e);
-                        statusText.value = 'Error'; statusColor.value = 'bg-red-500';
+                        statusText.value = e.message === 'Invalid Token' ? 'Invalid Token' : 'Error';
+                        statusColor.value = 'bg-red-500';
                     } finally {
                         isLoadingConfig = false;
                     }
@@ -696,8 +704,14 @@
                         return;
                     }
                     const cachedToken = localStorage.getItem(CACHE_TOKEN_KEY);
-                    if (cachedToken) tokenInput.value = cachedToken;
-                    fetchConfig();
+                    if (cachedToken) {
+                        tokenInput.value = cachedToken;
+                        fetchConfig();
+                    } else {
+                        config.value = {};
+                        statusText.value = 'Input Token';
+                        statusColor.value = 'bg-yellow-500';
+                    }
                 });
 
                 return { 
