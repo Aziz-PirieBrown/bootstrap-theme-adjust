@@ -303,6 +303,7 @@
                 const importInput = ref(null);
                 let currentSha = '';
                 let timer = null;
+                let isLoadingConfig = false;
 
                 // --- ºËÐÄ£º¸ÄÃû²»ÅÜÎ» (In-Place Rename) ---
                 // Õâ¸öº¯ÊýÄÜ±£Ö¤¸ÄÃûÊ±£¬KeyµÄÎ»ÖÃ²»¶¯
@@ -354,6 +355,7 @@
 
                 // --- GitHub API ---
                 const fetchConfig = async () => {
+                    isLoadingConfig = true;
                     statusText.value = 'Syncing...'; statusColor.value = 'bg-blue-500';
                     try {
                         const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${CONFIG_FILE_PATH}?t=${Date.now()}`;
@@ -363,7 +365,11 @@
                             return await fetch(url, { headers, cache: 'no-store' });
                         };
                         let res = await request(!!tokenInput.value);
-                        if ((res.status === 401 || res.status === 403) && tokenInput.value) res = await request(false);
+                        if ((res.status === 401 || res.status === 403) && tokenInput.value) {
+                            tokenInput.value = '';
+                            localStorage.removeItem(CACHE_TOKEN_KEY);
+                            res = await request(false);
+                        }
                         if (res.status === 404) {
                             config.value = {};
                             currentSha = null;
@@ -382,6 +388,8 @@
                     } catch (e) {
                         console.error('fetchConfig failed', e);
                         statusText.value = 'Error'; statusColor.value = 'bg-red-500';
+                    } finally {
+                        isLoadingConfig = false;
                     }
                 };
                 const saveConfig = async () => {
@@ -716,6 +724,7 @@
                 const scrollTo = (t) => { if (t === 'top') window.scrollTo({ top: 0, behavior: 'smooth' }); else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); };
 
                 watch(config, () => {
+                    if (isLoadingConfig || !tokenInput.value) return;
                     clearTimeout(timer);
                     if(statusText.value === 'Synced') statusText.value = 'Modified...';
                     timer = setTimeout(saveConfig, 2000);
