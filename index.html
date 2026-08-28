@@ -65,7 +65,7 @@
 
             <div class="flex-1 w-full md:max-w-md flex items-center gap-2 bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 focus-within:border-primary/50 transition-colors">
                 <i class="fas fa-key text-slate-500 ml-2 text-xs"></i>
-                <input type="password" v-model="tokenInput" @change="saveToken" placeholder="GitHub Token" class="w-full bg-transparent text-sm text-white px-2 placeholder-slate-600 font-mono">
+                <input type="text" v-model="tokenInput" @change="saveToken" placeholder="GitHub Token" class="w-full bg-transparent text-sm text-white px-2 placeholder-slate-600 font-mono">
             </div>
 
             <button v-cloak @click="manualSync" :disabled="isSaving || !tokenInput" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm shadow-lg shrink-0 flex items-center gap-2">
