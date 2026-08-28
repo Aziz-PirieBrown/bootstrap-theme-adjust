@@ -421,13 +421,17 @@
                             body: JSON.stringify(body)
                         });
 
-                        if (!res.ok) throw new Error('Save Failed');
+                        if (res.status === 401 || res.status === 403) {
+                            localStorage.removeItem(CACHE_TOKEN_KEY);
+                            throw new Error('Invalid Token');
+                        }
+                        if (!res.ok) throw new Error(Save Failed: );
                         
                         const resJson = await res.json();
                         currentSha = resJson.content.sha;
                         statusText.value = 'Synced'; statusColor.value = 'bg-green-400';
                     } catch (e) { 
-                        statusText.value = 'Save Error'; statusColor.value = 'bg-red-500';
+                        statusText.value = e.message === 'Invalid Token' ? 'Invalid Token' : 'Save Error'; statusColor.value = 'bg-red-500';
                     } finally { 
                         isSaving.value = false; 
                     }
