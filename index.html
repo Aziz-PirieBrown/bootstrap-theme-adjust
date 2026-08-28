@@ -727,12 +727,27 @@
                 
                 const scrollToUser = (id) => { const el = document.getElementById('user-' + id); if (el) window.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' }); };
                 const scrollTo = (t) => { if (t === 'top') window.scrollTo({ top: 0, behavior: 'smooth' }); else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); };
+                const scheduleAutoSave = () => {
+                    clearTimeout(timer);
+                    timer = setTimeout(() => {
+                        const active = document.activeElement;
+                        const isEditing = active && (
+                            active.tagName === 'INPUT' ||
+                            active.tagName === 'TEXTAREA' ||
+                            active.isContentEditable
+                        );
+                        if (isEditing) {
+                            scheduleAutoSave();
+                            return;
+                        }
+                        saveConfig();
+                    }, 1200);
+                };
 
                 watch(config, () => {
                     if (isLoadingConfig || !tokenInput.value) return;
-                    clearTimeout(timer);
                     if(statusText.value === 'Synced') statusText.value = 'Modified...';
-                    timer = setTimeout(saveConfig, 2000);
+                    scheduleAutoSave();
                 }, { deep: true });
 
                 onMounted(async () => {
