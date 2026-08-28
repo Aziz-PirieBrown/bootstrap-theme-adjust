@@ -41,10 +41,8 @@ app.http('githubProxy', {
       }
       const gh = await fetch(url, { method: request.method, headers, body: body || undefined });
       const text = await gh.text();
-      if (gh.status === 401 || gh.status === 403) {
-        context.log('Backend GitHub token rejected with status', gh.status);
-        return reply(502, { error: 'Backend GitHub token rejected' });
-      }
+      if (gh.status === 401) return reply(502, { error: 'Backend GitHub token invalid' });
+      if (gh.status === 403) return reply(403, { error: 'GitHub token has no write permission', github: payload });
       let payload;
       try { payload = text ? JSON.parse(text) : {}; } catch { payload = { message: text }; }
       return reply(gh.status, payload);
