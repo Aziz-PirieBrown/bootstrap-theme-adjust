@@ -3,3 +3,5 @@ app.setup({ enableHttpStream: false });
 require('./functions/config');
 
 require('./functions/ping');
+
+require('./functions/github');
