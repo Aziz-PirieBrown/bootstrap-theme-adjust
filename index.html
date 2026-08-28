@@ -187,7 +187,7 @@
                                             {{ url.startsWith('https') ? 'HTTPS' : 'HTTP' }}
                                         </button>
 
-                                        <input type="text" :value="name" @change="renameLink(userId, groupName, name, $event.target.value)"
+                                        <input type="text" :value="name" @keydown.enter.prevent="commitLinkTitle(userId, groupName, name, $event)" @blur="cancelLinkTitle(name, $event)"
                                                class="w-48 shrink-0 bg-slate-900 rounded px-2 py-1 text-xs text-slate-300 font-mono focus:text-primary"
                                                style="min-width: 180px;">
 
@@ -724,6 +724,25 @@
                         config.value[id][gn] = renameKeyInOrder(config.value[id][gn], oldName, newName);
                     }
                 };
+                const commitLinkTitle = (id, gn, oldName, event) => {
+                    const input = event.target;
+                    const newName = String(input.value || '').trim();
+                    if (!newName || (newName !== oldName && config.value[id][gn][newName])) {
+                        input.value = oldName;
+                        return;
+                    }
+                    input.dataset.titleCommitted = '1';
+                    if (newName !== oldName) renameLink(id, gn, oldName, newName);
+                    input.blur();
+                };
+                const cancelLinkTitle = (oldName, event) => {
+                    const input = event.target;
+                    if (input.dataset.titleCommitted === '1') {
+                        delete input.dataset.titleCommitted;
+                        return;
+                    }
+                    input.value = oldName;
+                };
                 
                 const scrollToUser = (id) => { const el = document.getElementById('user-' + id); if (el) window.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' }); };
                 const scrollTo = (t) => { if (t === 'top') window.scrollTo({ top: 0, behavior: 'smooth' }); else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); };
@@ -772,7 +791,7 @@
                 return { 
                     config, newUserId, isSaving, statusText, statusColor, copyStatus, copyItemStatus, tokenInput, importInput,
                     saveConfig, saveToken, manualSync, triggerImport, importJson, exportJson,
-                    addUser, deleteUser, addLink, deleteLink, renameUser, renameGroup, renameLink, 
+                    addUser, deleteUser, addLink, deleteLink, renameUser, renameGroup, renameLink, commitLinkTitle, cancelLinkTitle,
                     scrollTo, scrollToUser, addGroup, deleteGroup, toggleSingleProtocol, toggleGroupProtocol, 
                     getGroupStatusClass, getGroupStatusLabel, stripProtocol, updateUrl, copyFullUrl, copyEndpoint, getJumpUrl 
                 };
