@@ -103,8 +103,8 @@
             return;
         }
 
-        // Resolve a single shared item link without showing its final destination.
-        if (groupParam !== null || linkParam !== null) {
+        // Resolve an individual short link without displaying its final destination.
+        if (linkParam !== null) {
             if (!groupParam || !linkParam) {
                 loader.textContent = '分享链接无效';
                 return;
@@ -120,6 +120,34 @@
                 return;
             }
             window.location.replace(targetUrl);
+            return;
+        }
+
+        // A group short link redirects directly when it has one valid link.
+        // With multiple links, show only that group's list.
+        if (groupParam !== null) {
+            if (!groupParam) {
+                loader.textContent = '分组链接无效';
+                return;
+            }
+            const selectedGroup = Object.prototype.hasOwnProperty.call(userData, groupParam)
+                ? userData[groupParam]
+                : null;
+            if (!selectedGroup || typeof selectedGroup !== 'object') {
+                loader.textContent = '分组不存在或已失效';
+                return;
+            }
+            const groupTargets = Object.values(selectedGroup)
+                .filter(url => typeof url === 'string' && /^https?:\/\//i.test(url));
+            if (groupTargets.length === 1) {
+                window.location.replace(groupTargets[0]);
+                return;
+            }
+            if (groupTargets.length > 1) {
+                renderUI(id, { [groupParam]: selectedGroup });
+                return;
+            }
+            loader.textContent = '这个分组没有可用链接';
             return;
         }
 

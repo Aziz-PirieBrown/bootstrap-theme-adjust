@@ -171,6 +171,12 @@
                                         <i class="fas fa-plus"></i>
                                         Link
                                     </button>
+                                    <button @click="copyGroupLink(userId, groupName)"
+                                            title="复制整个分组的短链接"
+                                            class="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1">
+                                        <i class="fas" :class="copyItemStatus[userId+groupName+'__group'] ? 'fa-check text-green-400' : 'fa-copy'"></i>
+                                        {{ copyItemStatus[userId+groupName+'__group'] ? '已复制' : '复制' }}
+                                    </button>
 
                                     <button @click="deleteGroup(userId, groupName)" class="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-rose-400 transition-colors">
                                         <i class="fas fa-times"></i>
@@ -699,10 +705,8 @@
                 const getJumpUrl = (uid, groupName, linkName) => {
                     const jump = new URL(PUBLIC_DOMAIN);
                     jump.searchParams.set('id', uid);
-                    if (groupName !== undefined && linkName !== undefined) {
-                        jump.searchParams.set('group', groupName);
-                        jump.searchParams.set('link', linkName);
-                    }
+                    if (groupName !== undefined) jump.searchParams.set('group', groupName);
+                    if (linkName !== undefined) jump.searchParams.set('link', linkName);
                     return jump.toString();
                 };
                 const copyEndpoint = (uid) => {
@@ -711,6 +715,10 @@
                 const copyJumpLink = (id, gn, ln) => {
                     const key = id + gn + ln;
                     doCopy(getJumpUrl(id, gn, ln), () => { copyItemStatus.value[key] = true; setTimeout(() => copyItemStatus.value[key] = false, 2000); });
+                };
+                const copyGroupLink = (id, gn) => {
+                    const key = id + gn + '__group';
+                    doCopy(getJumpUrl(id, gn), () => { copyItemStatus.value[key] = true; setTimeout(() => copyItemStatus.value[key] = false, 2000); });
                 };
 
                 // --- CRUD ---
@@ -819,7 +827,7 @@
                     saveConfig, saveToken, manualSync, triggerImport, importJson, exportJson,
                     addUser, deleteUser, addLink, deleteLink, renameUser, renameGroup, renameLink, commitLinkTitle, cancelLinkTitle,
                     scrollTo, scrollToUser, addGroup, deleteGroup, toggleSingleProtocol, toggleGroupProtocol, 
-                    getGroupStatusClass, getGroupStatusLabel, stripProtocol, updateUrl, copyJumpLink, copyEndpoint, getJumpUrl
+                    getGroupStatusClass, getGroupStatusLabel, stripProtocol, updateUrl, copyJumpLink, copyGroupLink, copyEndpoint, getJumpUrl
                 };
             }
         }).mount('#app');
