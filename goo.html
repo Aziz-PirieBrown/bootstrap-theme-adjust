@@ -40,6 +40,8 @@
 (async function () {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
+    const groupParam = params.get('group');
+    const linkParam = params.get('link');
 
     const loader = document.getElementById('loader');
     const app = document.getElementById('app');
@@ -97,7 +99,27 @@
         const userData = config[id];
 
         if (!userData) {
-            loader.innerHTML = `<p class="text-rose-500 font-bold">未找到 ID: ${id}</p>`;
+            loader.textContent = '未找到 ID: ' + id;
+            return;
+        }
+
+        // Resolve a single shared item link without showing its final destination.
+        if (groupParam !== null || linkParam !== null) {
+            if (!groupParam || !linkParam) {
+                loader.textContent = '分享链接无效';
+                return;
+            }
+            const selectedGroup = Object.prototype.hasOwnProperty.call(userData, groupParam)
+                ? userData[groupParam]
+                : null;
+            const targetUrl = selectedGroup && Object.prototype.hasOwnProperty.call(selectedGroup, linkParam)
+                ? selectedGroup[linkParam]
+                : null;
+            if (typeof targetUrl !== 'string' || !/^https?:\/\//i.test(targetUrl)) {
+                loader.textContent = '分享链接不存在或已失效';
+                return;
+            }
+            window.location.replace(targetUrl);
             return;
         }
 
@@ -119,58 +141,89 @@
         loader.innerHTML = `<p class="text-rose-400">系统错误: ${err.message}</p>`;
     }
 
+    function buildItemJumpUrl(userId, groupName, linkName) {
+        const jump = new URL('./goo.html', window.location.href);
+        jump.searchParams.set('id', userId);
+        jump.searchParams.set('group', groupName);
+        jump.searchParams.set('link', linkName);
+        return jump.toString();
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[char]);
+    }
+
     function renderUI(userId, groups) {
         document.getElementById('userName').innerText = userId;
         const container = document.getElementById('groupsContainer');
-
         let html = '';
 
         for (const [groupName, links] of Object.entries(groups)) {
             const validLinks = Object.entries(links)
-                .filter(([_, url]) => url && url.startsWith('http'));
+                .filter(([_, url]) => typeof url === 'string' && /^https?:\/\//i.test(url));
 
             if (validLinks.length === 0) continue;
 
-            const linksHtml = validLinks.map(([name, url]) => {
-                const displayUrl = url.replace(/^https?:\/\//, '');
-                return `
-                    <a href="${url}"
-                       class="flex items-center justify-between gap-4 px-5 py-4
-                              border border-slate-700 rounded-xl
-                              bg-slate-800 hover:border-sky-500
-                              transition-all mb-3 group">
-
-                        <!-- 左侧：名称 + URL（同一行，超出 ...） -->
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="font-medium text-slate-200 shrink-0">
-                                ${name}
-                            </span>
-                            <span class="text-sm text-slate-500 truncate group-hover:text-sky-400">
-                                ${displayUrl}
-                            </span>
-                        </div>
-
-                        <!-- 右侧箭头 -->
-                        <span class="text-slate-600 shrink-0 group-hover:text-sky-400">
-                            →
-                        </span>
-                    </a>
-                `;
+            const linksHtml = validLinks.map(([name]) => {
+                const jumpUrl = escapeHtml(buildItemJumpUrl(userId, groupName, name));
+                const safeName = escapeHtml(name);
+                return '<div class="flex items-center gap-3 px-4 py-3 ' +
+                    'border border-slate-700 rounded-xl bg-slate-800 hover:border-sky-500 ' +
+                    'transition-all mb-3">' +
+                    '<a href="' + jumpUrl + '" class="flex-1 min-w-0 flex items-center justify-between gap-3 group">' +
+                    '<span class="font-medium text-slate-200 truncate">' + safeName + '</span>' +
+                    '<span class="text-slate-600 shrink-0 group-hover:text-sky-400">→</span>' +
+                    '</a>' +
+                    '<button type="button" data-copy-jump="' + jumpUrl + '" ' +
+                    'class="shrink-0 px-3 py-2 rounded-lg bg-slate-700/70 text-xs text-slate-300 ' +
+                    'hover:text-white hover:bg-sky-700 transition-colors">复制链接</button>' +
+                    '</div>';
             }).join('');
 
-            html += `
-                <div class="mb-6">
-                    <h3 class="text-xs font-bold text-slate-500 uppercase mb-3 tracking-widest">
-                        ${groupName}
-                    </h3>
-                    <div class="flex flex-col">
-                        ${linksHtml}
-                    </div>
-                </div>
-            `;
+            html += '<div class="mb-6">' +
+                '<h3 class="text-xs font-bold text-slate-500 uppercase mb-3 tracking-widest">' +
+                escapeHtml(groupName) +
+                '</h3><div class="flex flex-col">' + linksHtml + '</div></div>';
         }
 
         container.innerHTML = html;
+        container.querySelectorAll('[data-copy-jump]').forEach(button => {
+            button.addEventListener('click', async () => {
+                const jumpUrl = button.getAttribute('data-copy-jump');
+                let copied = false;
+                if (navigator.clipboard && window.isSecureContext) {
+                    try {
+                        await navigator.clipboard.writeText(jumpUrl);
+                        copied = true;
+                    } catch (_) {}
+                }
+                if (!copied) {
+                    const area = document.createElement('textarea');
+                    area.value = jumpUrl;
+                    area.style.position = 'fixed';
+                    area.style.left = '-9999px';
+                    area.setAttribute('readonly', '');
+                    document.body.appendChild(area);
+                    area.focus();
+                    area.select();
+                    try { copied = document.execCommand('copy'); }
+                    finally { document.body.removeChild(area); }
+                }
+                button.textContent = copied ? '已复制' : '复制失败';
+                button.classList.toggle('text-emerald-400', copied);
+                window.setTimeout(() => {
+                    button.textContent = '复制链接';
+                    button.classList.remove('text-emerald-400');
+                }, 1800);
+            });
+        });
+
         loader.classList.add('hidden');
         app.classList.remove('hidden');
     }

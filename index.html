@@ -195,7 +195,9 @@
                                             <i class="fas fa-external-link-alt text-xs"></i><span class="text-[11px] font-mono uppercase">Go</span>
                                         </a>
 
-                                        <button @click="copyFullUrl(url, userId, groupName, name)"
+                                        <button @click="copyJumpLink(userId, groupName, name)"
+                                                title="复制单条跳转链接（不复制最终地址）"
+                                                aria-label="复制单条跳转链接"
                                                 class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-primary transition-colors bg-slate-800/50 rounded shrink-0">
                                             <i class="fas" :class="copyItemStatus[userId+groupName+name] ? 'fa-check text-green-400' : 'fa-copy'"></i>
                                         </button>
@@ -671,20 +673,44 @@
                 };
                 const getGroupStatusLabel = (links) => Object.values(links).every(u => u.startsWith('https')) ? 'HTTPS' : 'HTTP';
                 
-                const doCopy = (text, callback) => {
-                    const area = document.createElement("textarea"); area.value = text;
-                    area.style.position = "fixed"; area.style.left = "-9999px";
-                    document.body.appendChild(area); area.focus(); area.select();
-                    if (document.execCommand('copy')) callback();
-                    document.body.removeChild(area);
+                const doCopy = async (text, callback) => {
+                    let copied = false;
+                    if (navigator.clipboard && window.isSecureContext) {
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            copied = true;
+                        } catch (_) {}
+                    }
+                    if (!copied) {
+                        const area = document.createElement("textarea");
+                        area.value = text;
+                        area.style.position = "fixed";
+                        area.style.left = "-9999px";
+                        area.setAttribute("readonly", "");
+                        document.body.appendChild(area);
+                        area.focus();
+                        area.select();
+                        try { copied = document.execCommand('copy'); }
+                        finally { document.body.removeChild(area); }
+                    }
+                    if (copied) callback();
+                    else alert('复制失败，请检查浏览器剪贴板权限');
                 };
-                const getJumpUrl = (uid) => `${PUBLIC_DOMAIN}?id=${uid}`;
+                const getJumpUrl = (uid, groupName, linkName) => {
+                    const jump = new URL(PUBLIC_DOMAIN);
+                    jump.searchParams.set('id', uid);
+                    if (groupName !== undefined && linkName !== undefined) {
+                        jump.searchParams.set('group', groupName);
+                        jump.searchParams.set('link', linkName);
+                    }
+                    return jump.toString();
+                };
                 const copyEndpoint = (uid) => {
                     doCopy(getJumpUrl(uid), () => { copyStatus.value[uid] = true; setTimeout(() => copyStatus.value[uid] = false, 2000); });
                 };
-                const copyFullUrl = (url, id, gn, ln) => {
+                const copyJumpLink = (id, gn, ln) => {
                     const key = id + gn + ln;
-                    doCopy(url, () => { copyItemStatus.value[key] = true; setTimeout(() => copyItemStatus.value[key] = false, 2000); });
+                    doCopy(getJumpUrl(id, gn, ln), () => { copyItemStatus.value[key] = true; setTimeout(() => copyItemStatus.value[key] = false, 2000); });
                 };
 
                 // --- CRUD ---
@@ -793,7 +819,7 @@
                     saveConfig, saveToken, manualSync, triggerImport, importJson, exportJson,
                     addUser, deleteUser, addLink, deleteLink, renameUser, renameGroup, renameLink, commitLinkTitle, cancelLinkTitle,
                     scrollTo, scrollToUser, addGroup, deleteGroup, toggleSingleProtocol, toggleGroupProtocol, 
-                    getGroupStatusClass, getGroupStatusLabel, stripProtocol, updateUrl, copyFullUrl, copyEndpoint, getJumpUrl 
+                    getGroupStatusClass, getGroupStatusLabel, stripProtocol, updateUrl, copyJumpLink, copyEndpoint, getJumpUrl
                 };
             }
         }).mount('#app');
